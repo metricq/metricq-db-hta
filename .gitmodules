@@ -1,0 +1,3 @@
+[submodule "lib/dataheap2"]
+	path = lib/dataheap2
+	url = git@gitlab.hrz.tu-chemnitz.de:tud-zih-dataheap/dataheap2.git
