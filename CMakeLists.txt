@@ -18,11 +18,13 @@ target_compile_features(dataheap2-db-hta PUBLIC cxx_std_17)
 target_compile_options(dataheap2-db-hta PUBLIC -Wall -Wextra -pedantic)
 
 add_subdirectory(lib/dataheap2)
+add_subdirectory(lib/hta)
 add_subdirectory(lib/nitro)
 
 target_link_libraries(dataheap2-db-hta
         PUBLIC
         dataheap2::db
+        hta::hta
         nitro::nitro-env
         nitro::nitro-log
         )
