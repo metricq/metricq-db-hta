@@ -6,7 +6,7 @@ include(cmake/DefaultBuildType.cmake)
 include(cmake/GitSubmoduleUpdate.cmake)
 git_submodule_update()
 
-set(SRCS src/main.cpp)
+set(SRCS src/main.cpp src/db.hpp src/db.cpp)
 
 add_executable(dataheap2-db-hta ${SRCS})
 target_include_directories(dataheap2-db-hta
@@ -25,8 +25,8 @@ target_link_libraries(dataheap2-db-hta
         PUBLIC
         dataheap2::db
         hta::hta
-        nitro::nitro-env
-        nitro::nitro-log
+        Nitro::nitro-env
+        Nitro::nitro-log
         )
 
 install(TARGETS dataheap2-db-hta RUNTIME DESTINATION bin)
