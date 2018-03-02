@@ -14,8 +14,13 @@ void Db::ready_callback()
 {
 }
 
-void Db::data_callback(const std::string& metric_name, dataheap2::TimeValue tv)
+void Db::data_callback(const std::string& metric_name, const dataheap2::DataChunk& chunk)
 {
-    (*directory)[metric_name]->insert(
-        { hta::TimePoint(hta::duration_cast(tv.time.time_since_epoch())), tv.value });
+    auto metric = (*directory)[metric_name];
+    for (auto tv : chunk)
+    {
+        metric->insert(TimeValue(tv));
+            //{ hta::TimePoint(hta::duration_cast(tv.time.time_since_epoch())), tv.value });
+
+    }
 }
