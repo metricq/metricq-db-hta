@@ -1,7 +1,20 @@
 #include "db.hpp"
 
-Db::Db(const std::string& manager_host, const std::string& token) : dataheap2::Db(token)
+#include "log.hpp"
+
+Db::Db(const std::string& manager_host, const std::string& token)
+: dataheap2::Db(token), signals_(io_service, SIGINT, SIGTERM)
 {
+    signals_.async_wait([this](auto, auto signal) {
+        if (!signal)
+        {
+            return;
+        }
+        Log::info() << "Caught signal " << signal << ". Shutdown dataheap2-db-hta.";
+        stop();
+    });
+
+
     connect(manager_host);
 }
 

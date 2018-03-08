@@ -27,6 +27,7 @@ target_link_libraries(dataheap2-db-hta
         hta::hta
         Nitro::nitro-env
         Nitro::nitro-log
+        Nitro::nitro-jiffy
         )
 
 install(TARGETS dataheap2-db-hta RUNTIME DESTINATION bin)

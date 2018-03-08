@@ -7,6 +7,8 @@
 #include <hta/directory.hpp>
 #include <hta/hta.hpp>
 
+#include <asio/signal_set.hpp>
+
 #include <memory>
 
 using json = nlohmann::json;
@@ -39,4 +41,5 @@ private:
 
 private:
     std::unique_ptr<hta::Directory> directory;
+    asio::signal_set signals_;
 };
