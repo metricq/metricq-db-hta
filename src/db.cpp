@@ -14,11 +14,10 @@ Db::Db(const std::string& manager_host, const std::string& token)
         stop();
     });
 
-
     connect(manager_host);
 }
 
-void Db::sink_config_callback(const json& config)
+void Db::db_config_callback(const json& config)
 {
     directory = std::make_unique<hta::Directory>(config);
 }

@@ -35,8 +35,8 @@ public:
     Db(const std::string& manager_host, const std::string& token = "htaDb");
 
 private:
-    void sink_config_callback(const json& config) override;
-    void ready_callback() override;
+    void db_config_callback(const json& config) override;
+    void ready_callback();
     void data_callback(const std::string& metric_name, const dataheap2::DataChunk& chunk) override;
 
 private:
