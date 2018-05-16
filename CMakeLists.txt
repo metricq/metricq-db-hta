@@ -6,7 +6,7 @@ include(cmake/DefaultBuildType.cmake)
 include(cmake/GitSubmoduleUpdate.cmake)
 git_submodule_update()
 
-set(SRCS src/main.cpp src/db.hpp src/db.cpp)
+set(SRCS src/main.cpp src/db.hpp src/db.cpp src/log.cpp)
 
 add_executable(dataheap2-db-hta ${SRCS})
 target_include_directories(dataheap2-db-hta

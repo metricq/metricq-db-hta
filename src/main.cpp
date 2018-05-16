@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
             set_severity(nitro::log::severity_level::warn);
         }
 
+        initialize_logger();
         Db db(options.get("server"), options.get("token"));
         db.main_loop();
         Log::info() << "exiting main loop.";

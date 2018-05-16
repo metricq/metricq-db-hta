@@ -43,3 +43,5 @@ inline void set_severity(nitro::log::severity_level level)
 {
     nitro::log::filter::severity_filter<detail::record>::set_severity(level);
 }
+
+void initialize_logger();
