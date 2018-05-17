@@ -16,6 +16,7 @@ int main(int argc, char* argv[])
     parser
         .option("token", "The token used for source authentication against the dataheap2 manager.")
         .default_value("htaDb");
+    parser.toggle("trace").short_name("t");
     parser.toggle("verbose").short_name("v");
     parser.toggle("quiet").short_name("q");
     parser.toggle("help").short_name("h");
@@ -30,6 +31,10 @@ int main(int argc, char* argv[])
             return 0;
         }
 
+        if (options.given("trace"))
+        {
+            set_severity(nitro::log::severity_level::trace);
+        }
         if (options.given("verbose"))
         {
             set_severity(nitro::log::severity_level::debug);

@@ -31,12 +31,25 @@ void Db::ready_callback()
 
 void Db::data_callback(const std::string& metric_name, const dataheap2::DataChunk& chunk)
 {
+    Log::trace() << "data_callback with " << chunk.value_size() << " values";
     assert(directory);
     auto metric = (*directory)[metric_name];
-    for (auto tv : chunk)
+    auto range = metric->range();
+    uint64_t skip = 0;
+    for (TimeValue tv : chunk)
     {
-        metric->insert(TimeValue(tv));
+        if (tv.htv.time < range.second)
+        {
+            skip++;
+            continue;
+        }
+        metric->insert(tv);
     }
+    if (skip > 0)
+    {
+        Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size() << " values";
+    }
+    Log::trace() << "data_callback complete";
     metric->flush();
 }
 

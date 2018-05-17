@@ -33,7 +33,6 @@ class Db : public dataheap2::Db
 {
 public:
     Db(const std::string& manager_host, const std::string& token = "htaDb");
-
 private:
     dataheap2::HistoryResponse history_callback(const std::string& id,
                                                 const dataheap2::HistoryRequest& content) override;
