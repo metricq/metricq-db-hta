@@ -1,47 +1,47 @@
 #include "log.hpp"
 
-#include <dataheap2/log.hpp>
+#include <metricq/log.hpp>
 
-class Logger : public dataheap2::Logger
+class Logger : public metricq::Logger
 {
 public:
     void trace(const std::string& msg) override
     {
-        Log::trace("dataheap2") << msg;
+        Log::trace("metricq") << msg;
     }
 
     void debug(const std::string& msg) override
     {
-        Log::debug("dataheap2") << msg;
+        Log::debug("metricq") << msg;
     }
 
     void notice(const std::string& msg) override
     {
-        Log::info("dataheap2") << msg;
+        Log::info("metricq") << msg;
     }
 
     void info(const std::string& msg) override
     {
-        Log::info("dataheap2") << msg;
+        Log::info("metricq") << msg;
     }
 
     void warn(const std::string& msg) override
     {
-        Log::warn("dataheap2") << msg;
+        Log::warn("metricq") << msg;
     }
 
     void error(const std::string& msg) override
     {
-        Log::error("dataheap2") << msg;
+        Log::error("metricq") << msg;
     }
 
     void fatal(const std::string& msg) override
     {
-        Log::fatal("dataheap2") << msg;
+        Log::fatal("metricq") << msg;
     }
 };
 
 void initialize_logger()
 {
-    dataheap2::make_logger<Logger>();
+    metricq::make_logger<Logger>();
 }

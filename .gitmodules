@@ -1,6 +1,6 @@
-[submodule "lib/dataheap2"]
-	path = lib/dataheap2
-	url = git@gitlab.hrz.tu-chemnitz.de:tud-zih-dataheap/dataheap2.git
+[submodule "lib/metricq"]
+	path = lib/metricq
+	url = git@github.com:metricq/metricq.git
 [submodule "lib/nitro"]
 	path = lib/nitro
 	url = git@github.com:tud-zih-energy/nitro.git

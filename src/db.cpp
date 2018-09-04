@@ -5,14 +5,14 @@
 #include <hta/ostream.hpp>
 
 Db::Db(const std::string& manager_host, const std::string& token)
-: dataheap2::Db(token), signals_(io_service, SIGINT, SIGTERM)
+: metricq::Db(token), signals_(io_service, SIGINT, SIGTERM)
 {
     signals_.async_wait([this](auto, auto signal) {
         if (!signal)
         {
             return;
         }
-        Log::info() << "Caught signal " << signal << ". Shutdown dataheap2-db-hta.";
+        Log::info() << "Caught signal " << signal << ". Shutdown metricq-db-hta.";
         stop();
     });
 
@@ -29,7 +29,7 @@ void Db::ready_callback()
     assert(directory);
 }
 
-void Db::data_callback(const std::string& metric_name, const dataheap2::DataChunk& chunk)
+void Db::data_callback(const std::string& metric_name, const metricq::DataChunk& chunk)
 {
     Log::trace() << "data_callback with " << chunk.value_size() << " values";
     assert(directory);
@@ -47,28 +47,33 @@ void Db::data_callback(const std::string& metric_name, const dataheap2::DataChun
     }
     if (skip > 0)
     {
-        Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size() << " values";
+        Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size()
+                     << " values";
     }
     Log::trace() << "data_callback complete";
     metric->flush();
 }
 
-dataheap2::HistoryResponse Db::history_callback(const std::string& id,
-                                                const dataheap2::HistoryRequest& content)
+metricq::HistoryResponse Db::history_callback(const std::string& id,
+                                                const metricq::HistoryRequest& content)
 {
-    dataheap2::HistoryResponse response;
+    metricq::HistoryResponse response;
     response.set_metric(id);
 
+    Log::debug() << "history_callback get metric";
     auto metric = (*directory)[id];
 
     hta::TimePoint start_time(hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
     hta::TimePoint end_time(hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
     auto interval_ns = hta::duration_cast(std::chrono::nanoseconds(content.interval_ns()));
 
+    Log::debug() << "history_callback get data";
     auto rows = metric->retrieve(start_time, end_time, interval_ns);
+    Log::debug() << "history_callback got data";
 
     hta::TimePoint last_time;
 
+    Log::debug() << "history_callback build response";
     for (auto row : rows)
     {
         auto time_delta =
@@ -79,6 +84,7 @@ dataheap2::HistoryResponse Db::history_callback(const std::string& id,
         response.add_value_avg(row.aggregate.mean());
         last_time = row.time;
     }
+    Log::debug() << "history_callback build response done";
 
     return response;
 }

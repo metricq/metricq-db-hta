@@ -10,11 +10,10 @@ int main(int argc, char* argv[])
     set_severity(nitro::log::severity_level::info);
 
     nitro::broken_options::parser parser;
-    parser.option("server", "The dataheap2 management server to connect to.")
+    parser.option("server", "The metricq management server to connect to.")
         .default_value("amqp://localhost")
         .short_name("s");
-    parser
-        .option("token", "The token used for source authentication against the dataheap2 manager.")
+    parser.option("token", "The token used for source authentication against the metricq manager.")
         .default_value("htaDb");
     parser.toggle("trace").short_name("t");
     parser.toggle("verbose").short_name("v");

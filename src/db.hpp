@@ -1,9 +1,9 @@
 #pragma once
 
-#include <dataheap2/db.hpp>
+#include <metricq/db.hpp>
 
-#include <dataheap2/datachunk.pb.h>
-#include <dataheap2/history.pb.h>
+#include <metricq/datachunk.pb.h>
+#include <metricq/history.pb.h>
 
 #include <hta/directory.hpp>
 #include <hta/hta.hpp>
@@ -16,7 +16,7 @@ using json = nlohmann::json;
 
 struct TimeValue
 {
-    TimeValue(dataheap2::TimeValue dtv)
+    TimeValue(metricq::TimeValue dtv)
     : htv{ hta::TimePoint(hta::duration_cast(dtv.time.time_since_epoch())), dtv.value }
     {
     }
@@ -29,16 +29,16 @@ struct TimeValue
     hta::TimeValue htv;
 };
 
-class Db : public dataheap2::Db
+class Db : public metricq::Db
 {
 public:
     Db(const std::string& manager_host, const std::string& token = "htaDb");
 private:
-    dataheap2::HistoryResponse history_callback(const std::string& id,
-                                                const dataheap2::HistoryRequest& content) override;
+    metricq::HistoryResponse history_callback(const std::string& id,
+                                                const metricq::HistoryRequest& content) override;
     void db_config_callback(const json& config) override;
     void ready_callback();
-    void data_callback(const std::string& metric_name, const dataheap2::DataChunk& chunk) override;
+    void data_callback(const std::string& metric_name, const metricq::DataChunk& chunk) override;
 
 private:
     std::unique_ptr<hta::Directory> directory;
