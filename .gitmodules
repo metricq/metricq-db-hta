@@ -6,4 +6,4 @@
 	url = git@github.com:tud-zih-energy/nitro.git
 [submodule "lib/hta"]
 	path = lib/hta
-	url = git@gitlab.hrz.tu-chemnitz.de:tud-zih-dataheap/hta.git
+	url = git@github.com:metricq/hta.git
