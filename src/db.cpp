@@ -65,7 +65,7 @@ void Db::data_callback(const std::string& metric_name, const metricq::DataChunk&
     uint64_t skip = 0;
     for (TimeValue tv : chunk)
     {
-        if (tv.htv.time < range.second)
+        if (tv.htv.time <= range.second)
         {
             skip++;
             continue;
