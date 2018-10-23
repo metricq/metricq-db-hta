@@ -77,8 +77,8 @@ void Db::data_callback(const std::string& metric_name, const metricq::DataChunk&
         Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size()
                      << " values";
     }
-    Log::trace() << "data_callback complete";
     metric->flush();
+    Log::trace() << "data_callback complete";
 }
 
 metricq::HistoryResponse Db::history_callback(const std::string& id,
