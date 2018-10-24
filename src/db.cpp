@@ -70,7 +70,16 @@ void Db::data_callback(const std::string& metric_name, const metricq::DataChunk&
             skip++;
             continue;
         }
-        metric->insert(tv);
+        try
+        {
+            metric->insert(tv);
+        }
+        catch (std::exception& ex)
+        {
+            Log::fatal() << "failed to insert value for " << metric_name << " ts: " << tv.htv.time
+                         << ", value: " << tv.htv.value;
+            throw;
+        }
     }
     if (skip > 0)
     {
