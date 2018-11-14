@@ -46,17 +46,17 @@ Db::Db(const std::string& manager_host, const std::string& token)
     connect(manager_host);
 }
 
-void Db::db_config_callback(const json& config)
+void Db::on_db_config(const json& config)
 {
     directory = std::make_unique<hta::Directory>(config);
 }
 
-void Db::ready_callback()
+void Db::on_db_ready()
 {
     assert(directory);
 }
 
-void Db::data_callback(const std::string& metric_name, const metricq::DataChunk& chunk)
+void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk)
 {
     Log::trace() << "data_callback with " << chunk.value_size() << " values";
     assert(directory);
@@ -90,8 +90,8 @@ void Db::data_callback(const std::string& metric_name, const metricq::DataChunk&
     Log::trace() << "data_callback complete";
 }
 
-metricq::HistoryResponse Db::history_callback(const std::string& id,
-                                              const metricq::HistoryRequest& content)
+metricq::HistoryResponse Db::on_history(const std::string& id,
+                                        const metricq::HistoryRequest& content)
 {
     metricq::HistoryResponse response;
     response.set_metric(id);
@@ -108,7 +108,6 @@ metricq::HistoryResponse Db::history_callback(const std::string& id,
     Log::debug() << "history_callback got data";
 
     hta::TimePoint last_time;
-
     Log::debug() << "history_callback build response";
     for (auto row : rows)
     {

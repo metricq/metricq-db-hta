@@ -62,11 +62,11 @@ public:
     Db(const std::string& manager_host, const std::string& token = "htaDb");
 
 private:
-    metricq::HistoryResponse history_callback(const std::string& id,
-                                              const metricq::HistoryRequest& content) override;
-    void db_config_callback(const json& config) override;
-    void ready_callback();
-    void data_callback(const std::string& metric_name, const metricq::DataChunk& chunk) override;
+    metricq::HistoryResponse on_history(const std::string& id,
+                                        const metricq::HistoryRequest& content) override;
+    void on_db_config(const json& config) override;
+    void on_db_ready() override;
+    void on_data(const std::string& metric_name, const metricq::DataChunk& chunk) override;
 
 private:
     std::unique_ptr<hta::Directory> directory;
