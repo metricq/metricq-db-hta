@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
         .default_value("amqp://localhost")
         .short_name("s");
     parser.option("token", "The token used for source authentication against the metricq manager.")
-        .default_value("htaDb");
+        .default_value("db-hta");
     parser.toggle("trace").short_name("t");
     parser.toggle("verbose").short_name("v");
     parser.toggle("quiet").short_name("q");
