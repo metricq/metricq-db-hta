@@ -31,6 +31,8 @@
 
 #include <hta/ostream.hpp>
 
+#include <chrono>
+
 Db::Db(const std::string& manager_host, const std::string& token)
 : metricq::Db(token), signals_(io_service, SIGINT, SIGTERM)
 {
@@ -58,6 +60,7 @@ void Db::on_db_ready()
 
 void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk)
 {
+    auto begin = std::chrono::system_clock::now();
     Log::trace() << "data_callback with " << chunk.value_size() << " values";
     assert(directory);
     auto metric = (*directory)[metric_name];
@@ -87,28 +90,44 @@ void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk
                      << " values";
     }
     metric->flush();
-    Log::trace() << "data_callback complete";
+    auto duration = std::chrono::system_clock::now() - begin;
+    if (duration > std::chrono::seconds(1))
+    {
+        Log::warn() << "on_data for " << metric_name << " with " << chunk.value_size()
+                    << " entries took "
+                    << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
+                    << "s";
+    }
+    else
+    {
+        Log::debug() << "on_data for " << metric_name << " with " << chunk.value_size()
+                     << " entries took "
+                     << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
+                     << "s";
+    }
 }
 
 metricq::HistoryResponse Db::on_history(const std::string& id,
                                         const metricq::HistoryRequest& content)
 {
+    auto begin = std::chrono::system_clock::now();
+
     metricq::HistoryResponse response;
     response.set_metric(id);
 
-    Log::debug() << "history_callback get metric";
+    Log::trace() << "on_history get metric";
     auto metric = (*directory)[id];
 
     hta::TimePoint start_time(hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
     hta::TimePoint end_time(hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
     auto interval_ns = hta::duration_cast(std::chrono::nanoseconds(content.interval_ns()));
 
-    Log::debug() << "history_callback get data";
+    Log::trace() << "on_history get data";
     auto rows = metric->retrieve(start_time, end_time, interval_ns);
-    Log::debug() << "history_callback got data";
+    Log::trace() << "on_history got data";
 
     hta::TimePoint last_time;
-    Log::debug() << "history_callback build response";
+    Log::trace() << "on_history build response";
     for (auto row : rows)
     {
         auto time_delta =
@@ -119,7 +138,21 @@ metricq::HistoryResponse Db::on_history(const std::string& id,
         response.add_value_avg(row.aggregate.mean());
         last_time = row.time;
     }
-    Log::debug() << "history_callback build response done";
 
+    auto duration = std::chrono::system_clock::now() - begin;
+    if (duration > std::chrono::seconds(1))
+    {
+        Log::warn() << "on_history for " << id << "(," << content.start_time() << ","
+                    << content.end_time() << "," << content.interval_ns() << ") took "
+                    << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
+                    << "s";
+    }
+    else
+    {
+        Log::debug() << "on_history for " << id << "(," << content.start_time() << ","
+                     << content.end_time() << "," << content.interval_ns() << ") took "
+                     << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
+                     << "s";
+    }
     return response;
 }
