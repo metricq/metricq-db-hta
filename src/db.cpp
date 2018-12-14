@@ -32,6 +32,7 @@
 #include <hta/ostream.hpp>
 
 #include <chrono>
+#include <ratio>
 
 Db::Db(const std::string& manager_host, const std::string& token)
 : metricq::Db(token), signals_(io_service, SIGINT, SIGTERM)
@@ -96,14 +97,14 @@ void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk
         Log::warn() << "on_data for " << metric_name << " with " << chunk.value_size()
                     << " entries took "
                     << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
-                    << "s";
+                    << " s";
     }
     else
     {
         Log::debug() << "on_data for " << metric_name << " with " << chunk.value_size()
                      << " entries took "
-                     << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
-                     << "s";
+                     << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(duration).count()
+                     << " ms";
     }
 }
 
@@ -145,14 +146,14 @@ metricq::HistoryResponse Db::on_history(const std::string& id,
         Log::warn() << "on_history for " << id << "(," << content.start_time() << ","
                     << content.end_time() << "," << content.interval_ns() << ") took "
                     << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
-                    << "s";
+                    << " s";
     }
     else
     {
         Log::debug() << "on_history for " << id << "(," << content.start_time() << ","
                      << content.end_time() << "," << content.interval_ns() << ") took "
-                     << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
-                     << "s";
+                     << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(duration).count()
+                     << " ms";
     }
     return response;
 }
