@@ -41,13 +41,13 @@ Db::Db(const std::string& manager_host, const std::string& token)
     connect(manager_host);
 }
 
-void Source::on_error(const std::string& message)
+void Db::on_error(const std::string& message)
 {
     Log::error() << "Connection to MetricQ failed: " << message;
     signals_.cancel();
 }
 
-void Source::on_closed()
+void Db::on_closed()
 {
     Log::debug() << "Connection to MetricQ closed.";
     signals_.cancel();
