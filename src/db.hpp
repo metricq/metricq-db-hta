@@ -60,6 +60,10 @@ private:
     void on_db_ready() override;
     void on_data(const std::string& metric_name, const metricq::DataChunk& chunk) override;
 
+protected:
+    void on_error(const std::string& message) override;
+    void on_closed() override;
+
 private:
     std::unique_ptr<hta::Directory> directory;
     asio::signal_set signals_;
