@@ -23,6 +23,8 @@
 
 #include <hta/ostream.hpp>
 
+#include <asio.hpp>
+
 #include <chrono>
 #include <ratio>
 
@@ -55,109 +57,41 @@ void Db::on_closed()
 
 void Db::on_db_config(const json& config)
 {
-    directory = std::make_unique<hta::Directory>(config);
+    // TODO make shared self voodoo to avoid disaster
+    // TODO use strand instead generic io_service of executor
+    auto config_complete_handler =
+        asio::bind_executor(io_service.get_executor(), [this]() { setup_history_queue(); });
+
+    async_hta.async_config(config, config_complete_handler);
 }
 
 void Db::on_db_ready()
 {
-    assert(directory);
 }
 
-void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk)
+bool Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
+                 uint64_t delivery_tag)
 {
-    auto begin = std::chrono::system_clock::now();
     Log::trace() << "data_callback with " << chunk.value_size() << " values";
-    assert(directory);
-    auto metric = (*directory)[metric_name];
-    auto range = metric->range();
-    uint64_t skip = 0;
-    for (TimeValue tv : chunk)
-    {
-        if (tv.htv.time <= range.second)
-        {
-            skip++;
-            continue;
-        }
-        try
-        {
-            metric->insert(tv);
-        }
-        catch (std::exception& ex)
-        {
-            Log::fatal() << "failed to insert value for " << metric_name << " ts: " << tv.htv.time
-                         << ", value: " << tv.htv.value;
-            throw;
-        }
-    }
-    if (skip > 0)
-    {
-        Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size()
-                     << " values";
-    }
-    metric->flush();
-    auto duration = std::chrono::system_clock::now() - begin;
-    if (duration > std::chrono::seconds(1))
-    {
-        Log::warn() << "on_data for " << metric_name << " with " << chunk.value_size()
-                    << " entries took "
-                    << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
-                    << " s";
-    }
-    else
-    {
-        Log::debug() << "on_data for " << metric_name << " with " << chunk.value_size()
-                     << " entries took "
-                     << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(duration).count()
-                     << " ms";
-    }
+
+    // TODO make shared self voodoo to avoid disaster
+    // TODO use strand instead generic io_service of executor
+    auto confirm_handler = asio::bind_executor(
+        io_service.get_executor(), [this, delivery_tag]() { data_confirm(delivery_tag); });
+    async_hta.async_write(metric_name, chunk, confirm_handler);
+
+    return false;
 }
 
-metricq::HistoryResponse Db::on_history(const std::string& id,
-                                        const metricq::HistoryRequest& content)
+void Db::on_history(const std::string& id, const metricq::HistoryRequest& content,
+                    std::function<void(const metricq::HistoryResponse&)>& respond)
 {
-    auto begin = std::chrono::system_clock::now();
-
-    metricq::HistoryResponse response;
-    response.set_metric(id);
-
-    Log::trace() << "on_history get metric";
-    auto metric = (*directory)[id];
-
-    hta::TimePoint start_time(hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
-    hta::TimePoint end_time(hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
-    auto interval_ns = hta::duration_cast(std::chrono::nanoseconds(content.interval_ns()));
-
-    Log::trace() << "on_history get data";
-    auto rows = metric->retrieve(start_time, end_time, interval_ns);
-    Log::trace() << "on_history got data";
-
-    hta::TimePoint last_time;
-    Log::trace() << "on_history build response";
-    for (auto row : rows)
-    {
-        auto time_delta =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
-        response.add_time_delta(time_delta.count());
-        response.add_value_min(row.aggregate.minimum);
-        response.add_value_max(row.aggregate.maximum);
-        response.add_value_avg(row.aggregate.mean());
-        last_time = row.time;
-    }
-
-    auto duration = std::chrono::system_clock::now() - begin;
-    if (duration > std::chrono::seconds(1))
-    {
-        Log::warn() << "on_history for " << id << "(," << content.start_time() << ","
-                    << content.end_time() << "," << content.interval_ns() << ") took "
-                    << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
-                    << " s";
-    }
-    else
-    {
-        Log::debug() << "on_history for " << id << "(," << content.start_time() << ","
-                     << content.end_time() << "," << content.interval_ns() << ") took "
-                     << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(duration).count()
-                     << " ms";
-    }
-    return response;
+    // TODO make shared self voodoo to avoid disaster
+    // TODO use strand instead generic io_service of executor
+    auto confirm_handler = asio::bind_executor(
+        io_service.get_executor(),
+        [this, respond = std::move(respond)](metricq::HistoryResponse response) {
+            respond(std::move(response));
+        });
+    async_hta.async_read(id, content, confirm_handler);
 }

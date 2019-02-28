@@ -19,13 +19,12 @@
 // along with metricq-db-hta.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
+#include "async_hta_service.hpp"
+
 #include <metricq/db.hpp>
 
 #include <metricq/datachunk.pb.h>
 #include <metricq/history.pb.h>
-
-#include <hta/directory.hpp>
-#include <hta/hta.hpp>
 
 #include <asio/signal_set.hpp>
 
@@ -33,38 +32,24 @@
 
 using json = nlohmann::json;
 
-struct TimeValue
-{
-    TimeValue(metricq::TimeValue dtv)
-    : htv{ hta::TimePoint(hta::duration_cast(dtv.time.time_since_epoch())), dtv.value }
-    {
-    }
-
-    operator hta::TimeValue() const
-    {
-        return htv;
-    }
-
-    hta::TimeValue htv;
-};
-
 class Db : public metricq::Db
 {
 public:
     Db(const std::string& manager_host, const std::string& token = "htaDb");
 
-private:
-    metricq::HistoryResponse on_history(const std::string& id,
-                                        const metricq::HistoryRequest& content) override;
+protected:
+    void on_history(const std::string& id, const metricq::HistoryRequest& content,
+                    std::function<void(const metricq::HistoryResponse&)>& respond) override;
     void on_db_config(const json& config) override;
     void on_db_ready() override;
-    void on_data(const std::string& metric_name, const metricq::DataChunk& chunk) override;
+    bool on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
+                 uint64_t delivery_tag) override;
 
 protected:
     void on_error(const std::string& message) override;
     void on_closed() override;
 
 private:
-    std::unique_ptr<hta::Directory> directory;
+    AsyncHtaService async_hta;
     asio::signal_set signals_;
 };
