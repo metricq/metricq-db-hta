@@ -90,7 +90,7 @@ public:
         assert(!pool_);
         pool_ = std::make_unique<asio::thread_pool>(threads);
         asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
-            directory = std::make_unique<hta::Directory>(config);
+            directory = std::make_unique<hta::Directory>(config, true);
             dispatch(work.get_executor(), [handler = std::move(handler)]() mutable { handler(); });
         });
     }
@@ -106,8 +106,8 @@ public:
             auto begin = std::chrono::system_clock::now();
 
             assert(directory);
-            auto metric = directory->at(id);
-            auto max_ts = metric->range().second;
+            auto& metric = (*directory)[id];
+            auto max_ts = metric.range().second;
             uint64_t skip = 0;
             for (TimeValue tv : chunk)
             {
@@ -119,7 +119,7 @@ public:
                 max_ts = tv.htv.time;
                 try
                 {
-                    metric->insert(tv);
+                    metric.insert(tv);
                 }
                 catch (std::exception& ex)
                 {
@@ -133,7 +133,7 @@ public:
                 Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size()
                              << " values";
             }
-            metric->flush();
+            metric.flush();
             auto duration = std::chrono::system_clock::now() - begin;
             if (duration > std::chrono::seconds(1))
             {
@@ -169,7 +169,7 @@ public:
             response.set_metric(id);
 
             Log::trace() << "on_history get metric";
-            auto metric = directory->at(id);
+            auto& metric = (*directory)[id];
 
             hta::TimePoint start_time(
                 hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
@@ -178,7 +178,7 @@ public:
             auto interval_ns = hta::duration_cast(std::chrono::nanoseconds(content.interval_ns()));
 
             Log::trace() << "on_history get data";
-            auto rows = metric->retrieve(start_time, end_time, interval_ns);
+            auto rows = metric.retrieve(start_time, end_time, interval_ns);
             Log::trace() << "on_history got data";
 
             hta::TimePoint last_time;
