@@ -59,9 +59,12 @@ void Db::on_db_config(const json& config)
 {
     // TODO make shared self voodoo to avoid disaster
     // TODO use strand instead generic io_service of executor
-    auto config_complete_handler =
-        asio::bind_executor(io_service.get_executor(), [this]() { setup_history_queue(); });
-
+    auto config_complete_handler = asio::bind_executor(io_service.get_executor(), [this]() {
+        Log::debug() << "config_completion_handler()";
+        setup_data_queue();
+        setup_history_queue();
+    });
+    Log::debug() << "on_db_config";
     async_hta.async_config(config, config_complete_handler);
 }
 
