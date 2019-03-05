@@ -35,7 +35,7 @@
 class Db : public metricq::Db
 {
 public:
-    Db(const std::string& manager_host, const std::string& token = "htaDb");
+    Db(const std::string& manager_host, const std::string& token = "metricq-db-hta");
 
 protected:
     void on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion complete) override;
