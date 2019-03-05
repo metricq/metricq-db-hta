@@ -93,13 +93,13 @@ public:
             Log::debug() << "async directory setup";
             directory = std::make_unique<hta::Directory>(config, true);
             Log::debug() << "async directory complete";
-            dispatch(work.get_executor(), [handler = std::move(handler)]() mutable { handler(); });
+            handler();
         });
     }
 
 private:
-    template <typename Work, typename Handler>
-    void write_(const std::string& id, Work work, const metricq::DataChunk& chunk, Handler handler)
+    template <typename Handler>
+    void write_(const std::string& id, const metricq::DataChunk& chunk, Handler handler)
     {
 
         auto begin = std::chrono::system_clock::now();
@@ -151,26 +151,22 @@ private:
                          << " ms";
         }
 
-        dispatch(work.get_executor(), [handler = std::move(handler)]() mutable { handler(); });
+        handler();
     }
 
 public:
     template <class Handler>
     void async_write(const std::string& id, const metricq::DataChunk& chunk, Handler handler)
     {
-        auto& strand = get_strand(id);
-        auto work = asio::make_work_guard(handler);
-
         // note we copy the chunk here as its a reused buffer owned by the original sink
-        asio::post(strand, [this, id, work, chunk, handler = std::move(handler)]() mutable {
-            this->write_(id, work, chunk, std::move(handler));
+        asio::post(get_strand(id), [this, id, chunk, handler = std::move(handler)]() mutable {
+            this->write_(id, chunk, std::move(handler));
         });
     }
 
 private:
-    template <typename Work, typename Handler>
-    void read_(const std::string& id, Work work, const metricq::HistoryRequest& content,
-               Handler handler)
+    template <typename Handler>
+    void read_(const std::string& id, const metricq::HistoryRequest& content, Handler handler)
     {
         auto begin = std::chrono::system_clock::now();
 
@@ -220,21 +216,15 @@ private:
                                 .count()
                          << " ms";
         }
-        dispatch(work.get_executor(),
-                 [handler = std::move(handler), response = std::move(response)]() mutable {
-                     handler(std::move(response));
-                 });
+        handler(response);
     }
 
 public:
     template <class Handler>
     void async_read(const std::string id, const metricq::HistoryRequest& content, Handler handler)
     {
-        auto& strand = get_strand(id);
-        auto work = asio::make_work_guard(handler);
-
-        asio::post(strand, [this, id, work, content, handler = std::move(handler)]() mutable {
-            this->read_(id, work, content, std::move(handler));
+        asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
+            this->read_(id, content, std::move(handler));
         });
     }
 

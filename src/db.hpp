@@ -22,6 +22,7 @@
 #include "async_hta_service.hpp"
 
 #include <metricq/db.hpp>
+#include <metricq/json.hpp>
 
 #include <metricq/datachunk.pb.h>
 #include <metricq/history.pb.h>
@@ -30,7 +31,6 @@
 
 #include <memory>
 
-using json = nlohmann::json;
 
 class Db : public metricq::Db
 {
@@ -38,12 +38,12 @@ public:
     Db(const std::string& manager_host, const std::string& token = "htaDb");
 
 protected:
+    void on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion complete) override;
     void on_history(const std::string& id, const metricq::HistoryRequest& content,
-                    std::function<void(const metricq::HistoryResponse&)>& respond) override;
-    void on_db_config(const json& config) override;
+                    metricq::Db::HistoryCompletion complete) override;
     void on_db_ready() override;
-    bool on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
-                 uint64_t delivery_tag) override;
+    void on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
+                 metricq::Db::DataCompletion complete) override;
 
 protected:
     void on_error(const std::string& message) override;

@@ -55,46 +55,26 @@ void Db::on_closed()
     signals_.cancel();
 }
 
-void Db::on_db_config(const json& config)
+void Db::on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion complete)
 {
-    // TODO make shared self voodoo to avoid disaster
-    // TODO use strand instead generic io_service of executor
-    auto config_complete_handler = asio::bind_executor(io_service.get_executor(), [this]() {
-        Log::debug() << "config_completion_handler()";
-        setup_data_queue();
-        setup_history_queue();
-    });
     Log::debug() << "on_db_config";
-    async_hta.async_config(config, config_complete_handler);
+    async_hta.async_config(config, std::move(complete));
 }
 
 void Db::on_db_ready()
 {
 }
 
-bool Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
-                 uint64_t delivery_tag)
+void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
+                 metricq::Db::DataCompletion complete)
 {
     Log::trace() << "data_callback with " << chunk.value_size() << " values";
 
-    // TODO make shared self voodoo to avoid disaster
-    // TODO use strand instead generic io_service of executor
-    auto confirm_handler = asio::bind_executor(
-        io_service.get_executor(), [this, delivery_tag]() { data_confirm(delivery_tag); });
-    async_hta.async_write(metric_name, chunk, confirm_handler);
-
-    return false;
+    async_hta.async_write(metric_name, chunk, std::move(complete));
 }
 
 void Db::on_history(const std::string& id, const metricq::HistoryRequest& content,
-                    std::function<void(const metricq::HistoryResponse&)>& respond)
+                    metricq::Db::HistoryCompletion complete)
 {
-    // TODO make shared self voodoo to avoid disaster
-    // TODO use strand instead generic io_service of executor
-    auto confirm_handler = asio::bind_executor(
-        io_service.get_executor(),
-        [this, respond = std::move(respond)](metricq::HistoryResponse response) {
-            respond(std::move(response));
-        });
-    async_hta.async_read(id, content, confirm_handler);
+    async_hta.async_read(id, content, std::move(complete));
 }
