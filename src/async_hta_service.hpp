@@ -240,6 +240,6 @@ private:
 private:
     std::unique_ptr<hta::Directory> directory;
     std::mutex strand_lock_;
-    std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
     std::unique_ptr<asio::thread_pool> pool_;
+    std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 };
