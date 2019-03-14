@@ -68,9 +68,30 @@ void Db::on_db_ready()
 void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
                  metricq::Db::DataCompletion complete)
 {
+    if (!received_chunk_)
+    {
+        received_chunk_ = true;
+        Log::info() << "received first datachunk "
+                    << metricq::Clock::now().time_since_epoch().count();
+    }
     Log::trace() << "data_callback with " << chunk.value_size() << " values";
 
     async_hta.async_write(metric_name, chunk, std::move(complete));
+}
+
+void Db::on_data(const AMQP::Message& message, uint64_t delivery_tag, bool redelivered)
+{
+    if (message.typeName() == "end")
+    {
+        data_channel_->ack(delivery_tag);
+        Log::info() << "received end message, requesting release and stop";
+        // We used to close the data connection here, but this should not be necessary.
+        // It will be closed implicitly from the response callback.
+        rpc("sink.release", [this](const auto&) { close(); }, { { "dataQueue", data_queue_ } });
+        return;
+    }
+
+    Sink::on_data(message, delivery_tag, redelivered);
 }
 
 void Db::on_history(const std::string& id, const metricq::HistoryRequest& content,

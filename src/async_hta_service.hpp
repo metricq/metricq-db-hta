@@ -79,6 +79,13 @@ public:
         {
             pool_->join();
         }
+
+        uint64_t values = 0;
+        for (const auto& elem : this->strands_)
+        {
+            values += (*directory)[elem.first].count();
+        }
+        Log::info() << "stopped AsyncHtaService total values " << values;
     }
 
     template <class Handler>

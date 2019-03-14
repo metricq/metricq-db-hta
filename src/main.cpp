@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
         initialize_logger();
         Db db(options.get("server"), options.get("token"));
         db.main_loop();
-        Log::info() << "exiting main loop.";
+        Log::info() << "exiting main loop " << metricq::Clock::now().time_since_epoch().count();
     }
     catch (nitro::broken_options::parsing_error& e)
     {

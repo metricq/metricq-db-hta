@@ -31,7 +31,6 @@
 
 #include <memory>
 
-
 class Db : public metricq::Db
 {
 public:
@@ -44,6 +43,7 @@ protected:
     void on_db_ready() override;
     void on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
                  metricq::Db::DataCompletion complete) override;
+    void on_data(const AMQP::Message& message, uint64_t delivery_tag, bool redelivered) override;
 
 protected:
     void on_error(const std::string& message) override;
@@ -52,4 +52,5 @@ protected:
 private:
     AsyncHtaService async_hta;
     asio::signal_set signals_;
+    bool received_chunk_ = false;
 };
