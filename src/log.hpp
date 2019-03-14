@@ -23,7 +23,7 @@
 #include <nitro/log/attribute/severity.hpp>
 #include <nitro/log/filter/severity_filter.hpp>
 #include <nitro/log/log.hpp>
-#include <nitro/log/sink/stderr.hpp>
+#include <nitro/log/sink/stdout.hpp>
 
 namespace detail
 {
@@ -56,7 +56,7 @@ using log_filter = nitro::log::filter::severity_filter<Record>;
 } // namespace detail
 
 // TODO different levels should go to stderr/stdout
-using Log = nitro::log::logger<detail::record, detail::log_formater, nitro::log::sink::StdErr,
+using Log = nitro::log::logger<detail::record, detail::log_formater, nitro::log::sink::StdOut,
                                detail::log_filter>;
 
 inline void set_severity(nitro::log::severity_level level)
