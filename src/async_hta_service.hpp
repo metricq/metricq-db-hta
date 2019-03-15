@@ -42,6 +42,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -68,6 +69,8 @@ struct TimeValue
 
 class AsyncHtaService
 {
+    std::filesystem::path cleanup_db_path_;
+
 public:
     AsyncHtaService()
     {
@@ -86,6 +89,10 @@ public:
             values += (*directory)[elem.first].count();
         }
         Log::info() << "stopped AsyncHtaService total values " << values;
+        if (!cleanup_db_path_.empty()) {
+            Log::warn() << "DELETING DB PATH AS REQUESTED " << cleanup_db_path_;
+            std::filesystem::remove_all(cleanup_db_path_);
+        }
     }
 
     template <class Handler>
@@ -94,10 +101,24 @@ public:
         auto work = asio::make_work_guard(handler);
 
         int threads = config.at("threads");
+
         assert(!pool_);
         pool_ = std::make_unique<asio::thread_pool>(threads);
         asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
             Log::debug() << "async directory setup";
+
+            std::string p = config.at("path");
+
+            if (config.count("create") and bool(config.at("create")))
+            {
+                std::filesystem::create_directories(p);
+            }
+
+            if (config.count("delete") and bool(config.at("delete")))
+            {
+                cleanup_db_path_ = p;
+            }
+
             directory = std::make_unique<hta::Directory>(config, true);
             Log::debug() << "async directory complete";
             handler();
