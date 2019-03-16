@@ -150,8 +150,8 @@ private:
             }
             catch (std::exception& ex)
             {
-                Log::fatal() << "failed to insert value for " << id << " ts: " << tv.htv.time
-                             << ", value: " << tv.htv.value;
+                Log::fatal() << "failed inserting " << id << " at " << tv.htv.time
+                             << ", " << tv.htv.value << ": " << ex.what();
                 throw;
             }
         }
