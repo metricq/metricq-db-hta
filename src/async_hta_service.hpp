@@ -89,7 +89,8 @@ public:
             values += (*directory)[elem.first].count();
         }
         Log::info() << "stopped AsyncHtaService total values " << values;
-        if (!cleanup_db_path_.empty()) {
+        if (!cleanup_db_path_.empty())
+        {
             Log::warn() << "DELETING DB PATH AS REQUESTED " << cleanup_db_path_;
             std::filesystem::remove_all(cleanup_db_path_);
         }
@@ -109,14 +110,16 @@ public:
 
             std::string p = config.at("path");
 
-            if (config.count("create") and bool(config.at("create")))
-            {
-                std::filesystem::create_directories(p);
-            }
-
             if (config.count("delete") and bool(config.at("delete")))
             {
+                auto count = std::filesystem::remove_all(p);
+                Log::info() << "deleted " << count << " existing files/directories in " << p;
+                std::filesystem::create_directories(p);
                 cleanup_db_path_ = p;
+            }
+            else if (config.count("create") and bool(config.at("create")))
+            {
+                std::filesystem::create_directories(p);
             }
 
             directory = std::make_unique<hta::Directory>(config, true);
@@ -150,8 +153,8 @@ private:
             }
             catch (std::exception& ex)
             {
-                Log::fatal() << "failed inserting " << id << " at " << tv.htv.time
-                             << ", " << tv.htv.value << ": " << ex.what();
+                Log::fatal() << "failed inserting " << id << " at " << tv.htv.time << ", "
+                             << tv.htv.value << ": " << ex.what();
                 throw;
             }
         }
