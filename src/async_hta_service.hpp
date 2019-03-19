@@ -112,9 +112,12 @@ public:
 
             if (config.count("delete") and bool(config.at("delete")))
             {
-                auto count = std::filesystem::remove_all(p);
-                Log::info() << "deleted " << count << " existing files/directories in " << p;
-                std::filesystem::create_directories(p);
+                std::filesystem::path path = p;
+                auto count = std::filesystem::remove_all(path);
+                auto created = std::filesystem::create_directories(path);
+                Log::info() << "DELETED " << count << " EXISTING FILES/DIRECTORIES IN " << path
+                            << " created new one: " << created ? "yes" : "NO!?!";
+                Log::info() << "parent4mario: " << path.parent_path();
                 cleanup_db_path_ = p;
             }
             else if (config.count("create") and bool(config.at("create")))
