@@ -116,7 +116,7 @@ public:
                 auto count = std::filesystem::remove_all(path);
                 auto created = std::filesystem::create_directories(path);
                 Log::info() << "DELETED " << count << " EXISTING FILES/DIRECTORIES IN " << path
-                            << " created new one: " << created ? "yes" : "NO!?!";
+                            << " created new one: " << (created ? "yes" : "NO!?!");
                 Log::info() << "parent4mario: " << path.parent_path();
                 cleanup_db_path_ = p;
             }
