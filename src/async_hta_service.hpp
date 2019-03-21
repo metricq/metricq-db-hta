@@ -204,6 +204,9 @@ private:
     {
         auto begin = std::chrono::system_clock::now();
 
+        // not quite generic :/
+        handler.begin_processing();
+
         metricq::HistoryResponse response;
         response.set_metric(id);
 
