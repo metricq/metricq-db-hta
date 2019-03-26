@@ -83,11 +83,15 @@ void Db::on_data(const AMQP::Message& message, uint64_t delivery_tag, bool redel
 {
     if (message.typeName() == "end")
     {
-        data_channel_->ack(delivery_tag);
-        Log::info() << "received end message, requesting release and stop";
-        // We used to close the data connection here, but this should not be necessary.
-        // It will be closed implicitly from the response callback.
-        rpc("sink.release", [this](const auto&) { close(); }, { { "dataQueue", data_queue_ } });
+        ongoing_streams--;
+        if (ongoing_streams == 0)
+        {
+            data_channel_->ack(delivery_tag);
+            Log::info() << "received end message, requesting release and stop";
+            // We used to close the data connection here, but this should not be necessary.
+            // It will be closed implicitly from the response callback.
+            rpc("sink.release", [this](const auto&) { close(); }, { { "dataQueue", data_queue_ } });
+        }
         return;
     }
 

@@ -53,4 +53,6 @@ private:
     AsyncHtaService async_hta;
     asio::signal_set signals_;
     bool received_chunk_ = false;
+public:
+    int ongoing_streams = 1;
 };

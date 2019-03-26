@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
         .short_name("s");
     parser.option("token", "The token used for source authentication against the metricq manager.")
         .default_value("db-hta");
+    parser.option("streams", "number of streams (BENCHMARK)");
     parser.toggle("trace").short_name("t");
     parser.toggle("verbose").short_name("v");
     parser.toggle("quiet").short_name("q");
@@ -64,6 +65,7 @@ int main(int argc, char* argv[])
 
         initialize_logger();
         Db db(options.get("server"), options.get("token"));
+        db.ongoing_streams = std::stoi(options.get("streams"));
         db.main_loop();
         Log::info() << "exiting main loop " << metricq::Clock::now().time_since_epoch().count();
     }
