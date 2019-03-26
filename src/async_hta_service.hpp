@@ -177,7 +177,7 @@ private:
         }
         else
         {
-            Log::debug() << "on_data for " << id << " with " << chunk.value_size()
+            Log::trace() << "on_data for " << id << " with " << chunk.value_size()
                          << " entries took "
                          << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(
                                 duration)
