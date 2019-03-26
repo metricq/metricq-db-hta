@@ -168,7 +168,7 @@ private:
         }
         metric.flush();
         auto duration = std::chrono::system_clock::now() - begin;
-        if (duration > std::chrono::milliseconds(1))
+        if (duration > std::chrono::milliseconds(10))
         {
             Log::warn()
                 << "on_data for " << id << " with " << chunk.value_size() << " entries took "
