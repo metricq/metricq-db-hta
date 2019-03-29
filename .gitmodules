@@ -1,9 +1,6 @@
 [submodule "lib/metricq"]
 	path = lib/metricq
 	url = https://github.com/metricq/metricq.git
-[submodule "lib/nitro"]
-	path = lib/nitro
-	url = https://github.com/tud-zih-energy/nitro.git
 [submodule "lib/hta"]
 	path = lib/hta
 	url = https://github.com/metricq/hta.git
