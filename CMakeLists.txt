@@ -6,7 +6,7 @@ include(cmake/DefaultBuildType.cmake)
 include(cmake/GitSubmoduleUpdate.cmake)
 git_submodule_update()
 
-set(SRCS src/main.cpp src/db.hpp src/db.cpp src/log.cpp)
+set(SRCS src/main.cpp src/db.hpp src/db.cpp)
 
 add_executable(metricq-db-hta ${SRCS})
 target_include_directories(metricq-db-hta
@@ -19,15 +19,13 @@ target_compile_options(metricq-db-hta PUBLIC -Wall -Wextra -pedantic)
 
 add_subdirectory(lib/metricq)
 add_subdirectory(lib/hta)
-add_subdirectory(lib/nitro)
 
 target_link_libraries(metricq-db-hta
         PUBLIC
         metricq::db
+        metricq::logger-nitro
         hta::hta
-        Nitro::nitro-env
-        Nitro::nitro-log
-        Nitro::nitro-jiffy
+        Nitro::core
         )
 
 install(TARGETS metricq-db-hta RUNTIME DESTINATION bin)
