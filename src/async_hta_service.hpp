@@ -218,21 +218,41 @@ private:
         hta::TimePoint end_time(hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
         auto interval_ns = hta::duration_cast(std::chrono::nanoseconds(content.interval_ns()));
 
-        Log::trace() << "on_history get data";
-        auto rows = metric.retrieve(start_time, end_time, interval_ns);
-        Log::trace() << "on_history got data";
-
-        hta::TimePoint last_time;
-        Log::trace() << "on_history build response";
-        for (auto row : rows)
+        if (interval_ns.count() != 0)
         {
-            auto time_delta =
-                std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
-            response.add_time_delta(time_delta.count());
-            response.add_value_min(row.aggregate.minimum);
-            response.add_value_max(row.aggregate.maximum);
-            response.add_value_avg(row.aggregate.mean());
-            last_time = row.time;
+            Log::trace() << "on_history get data (aggregate)";
+            auto rows = metric.retrieve(start_time, end_time, interval_ns);
+            Log::trace() << "on_history got data (aggregate)";
+
+            hta::TimePoint last_time;
+            Log::trace() << "on_history build response";
+            for (auto row : rows)
+            {
+                auto time_delta =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
+                response.add_time_delta(time_delta.count());
+                response.add_value_min(row.aggregate.minimum);
+                response.add_value_max(row.aggregate.maximum);
+                response.add_value_avg(row.aggregate.mean());
+                last_time = row.time;
+            }
+        }
+        else
+        {
+            Log::trace() << "on_history get data (raw)";
+            auto rows = metric.retrieve(start_time, end_time);
+            Log::trace() << "on_history got data (raw)";
+
+            hta::TimePoint last_time;
+            Log::trace() << "on_history build response";
+            for (auto row : rows)
+            {
+                auto time_delta =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
+                response.add_time_delta(time_delta.count());
+                response.add_value_avg(row.value);
+                last_time = row.time;
+            }
         }
 
         auto duration = std::chrono::system_clock::now() - begin;
