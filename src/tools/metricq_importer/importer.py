@@ -95,7 +95,7 @@ class DataheapToHTAImporter(object):
     def __init__(self, rpc_url, token,
                  couchdb_url, couchdb_user, couchdb_password,
                  import_host, import_user,  import_password, import_database,
-                 num_workers=3):
+                 num_workers=2):
         self.rpc_url = rpc_url
         self.token = token
 
