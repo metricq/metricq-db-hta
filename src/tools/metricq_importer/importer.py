@@ -233,7 +233,7 @@ class DataheapToHTAImporter(object):
                                                            '-m', metric.metricq_name,
                                                            '--import-metric', metric.import_name,
                                                            '-c', conffile_name,
-                                                           '--max-timestamp', str(int(self.import_begin.posix_ms)),
+                                                           # '--max-timestamp', str(int(self.import_begin.posix_ms)),
                                                            '--mysql-chunk-size', str(10000000))
 
             ret = await process.wait()
