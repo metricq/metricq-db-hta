@@ -270,7 +270,7 @@ def importer_cmd(rpc_url, db_token,
                                      import_host, import_user,  import_password, import_database)
     for hostid in chain(range(4001, 4232+1), range(5001, 5612+1), range(6001, 6612+1)):
         hostname = f'taurusi{hostid}'
-        importer.register(metricq_name=f'taurus.{hostname}.power', import_name=f'{hostname}_watts', sampling_rate=1.0)
+        importer.register(metricq_name=f'taurus.{hostname}.blade.power', import_name=f'{hostname}_watts', sampling_rate=1.0)
         importer.register(metricq_name=f'taurus.{hostname}.cpu0.power', import_name=None, sampling_rate=1.0)
         importer.register(metricq_name=f'taurus.{hostname}.cpu1.power', import_name=None, sampling_rate=1.0)
     # importer = HDEEMImporter(rpc_url, db_token, couchdb_url, couchdb_user, couchdb_password)
