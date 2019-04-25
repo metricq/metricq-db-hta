@@ -107,12 +107,19 @@ private:
         assert(directory);
         auto& metric = (*directory)[id];
         auto max_ts = metric.range().second;
-        uint64_t skip = 0;
+        uint64_t skip_non_monotonic = 0;
+        uint64_t skip_nan = 0;
         for (TimeValue tv : chunk)
         {
             if (tv.htv.time <= max_ts)
             {
-                skip++;
+                skip_non_monotonic++;
+                continue;
+            }
+            // TODO make this configurable
+            if (std::isnan(tv.htv.value))
+            {
+                skip_nan++;
                 continue;
             }
             max_ts = tv.htv.time;
@@ -127,11 +134,16 @@ private:
                 throw;
             }
         }
-        if (skip > 0)
+        if (skip_non_monotonic > 0)
         {
-            Log::error() << "Skipped " << skip << " non-monotonic of " << chunk.value_size()
-                         << " values";
+            Log::warn() << "Skipped " << skip_non_monotonic << " non-monotonic of "
+                        << chunk.value_size() << " values";
         }
+        if (skip_nan > 0)
+        {
+            Log::warn() << "Skipped " << skip_nan << " NaNs of " << chunk.value_size() << " values";
+        }
+
         metric.flush();
         auto duration = std::chrono::system_clock::now() - begin;
         if (duration > std::chrono::seconds(1))
