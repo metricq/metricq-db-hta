@@ -40,13 +40,15 @@
 
 #include <asio.hpp>
 
-#include <cassert>
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include <cassert>
+#include <cmath>
 
 using metricq::json;
 
