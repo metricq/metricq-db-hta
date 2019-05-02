@@ -85,12 +85,31 @@ public:
 
     void register_source_mapping_(const std::string& source, const std::string& name)
     {
+        if (auto it_found = mapped_metrics_.find(name); it_found != mapped_metrics_.end())
+        {
+            Log::fatal() << "trying to map to a metric multiple times, source: " << source
+                         << ", name: " << name;
+            throw std::logic_error("ambigous source, invalid configuration.");
+        }
+
         auto [it, inserted] = source_mapping_.emplace(source, name);
         if (!inserted)
         {
             Log::fatal() << "trying to insert the same source name twice: " << source;
             throw std::logic_error("duplicated source, invalid configuration.");
         }
+        mapped_metrics_.emplace(name);
+    }
+
+    std::string get_mapped_name_(const std::string& source)
+    {
+        std::lock_guard<std::mutex> guard(mapping_lock_);
+        if (auto it = source_mapping_.find(source); it != source_mapping_.end())
+        {
+            return it->second;
+        }
+        register_source_mapping_(source, source);
+        return source;
     }
 
     template <class Handler>
@@ -224,11 +243,7 @@ public:
     void async_write(const std::string& source, const metricq::DataChunk& chunk, Handler handler)
     {
         // note we copy the chunk here as its a reused buffer owned by the original sink
-        std::string name = source;
-        if (auto it = source_mapping_.find(source); it != source_mapping_.end())
-        {
-            name = it->second;
-        }
+        std::string name = get_mapped_name_(source);
 
         asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
             this->write_(name, chunk, std::move(handler));
@@ -310,7 +325,17 @@ private:
 
 private:
     std::unique_ptr<hta::Directory> directory;
+    std::mutex mapping_lock_;
+    /**
+     * mapping from a source metric name to a actual logical metric name
+     * e.g. foo.bar.power.100Hz => foo.bar.power
+     */
     std::unordered_map<std::string, std::string> source_mapping_;
+    /**
+     * set of logical metric names that are already included in the source mapping
+     * used to avoid ambiguous mappings
+     */
+    std::unordered_set<std::string> mapped_metrics_;
     std::mutex strand_lock_;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
