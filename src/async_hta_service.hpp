@@ -89,7 +89,7 @@ public:
         {
             Log::fatal() << "trying to map to a metric multiple times, source: " << source
                          << ", name: " << name;
-            throw std::logic_error("ambigous source, invalid configuration.");
+            throw std::logic_error("ambiguous source, invalid configuration.");
         }
 
         auto [it, inserted] = source_mapping_.emplace(source, name);
