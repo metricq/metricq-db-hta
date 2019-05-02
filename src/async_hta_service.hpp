@@ -83,15 +83,14 @@ public:
         }
     }
 
-    auto register_source_mapping_(const std::string& source, const std::string& name)
+    void register_source_mapping_(const std::string& source, const std::string& name)
     {
-        auto [it, inserted] = source_mapping_.emplace(source, (*directory)[name]);
+        auto [it, inserted] = source_mapping_.emplace(source, name);
         if (!inserted)
         {
             Log::fatal() << "trying to insert the same source name twice: " << source;
             throw std::logic_error("duplicated source, invalid configuration.");
         }
-        return it;
     }
 
     template <class Handler>
@@ -158,13 +157,8 @@ private:
 
         auto begin = std::chrono::system_clock::now();
 
-        auto it = source_mapping_.find(id);
-        if (it == source_mapping_.end())
-        {
-            it = register_source_mapping_(id, id);
-        }
         assert(directory);
-        auto& metric = it->second;
+        auto& metric = (*directory)[id];
         auto max_ts = metric.range().second;
         uint64_t skip_non_monotonic = 0;
         uint64_t skip_nan = 0;
@@ -227,11 +221,17 @@ private:
 
 public:
     template <class Handler>
-    void async_write(const std::string& id, const metricq::DataChunk& chunk, Handler handler)
+    void async_write(const std::string& source, const metricq::DataChunk& chunk, Handler handler)
     {
         // note we copy the chunk here as its a reused buffer owned by the original sink
-        asio::post(get_strand(id), [this, id, chunk, handler = std::move(handler)]() mutable {
-            this->write_(id, chunk, std::move(handler));
+        std::string name = source;
+        if (auto it = source_mapping_.find(source); it != source_mapping_.end())
+        {
+            name = it->second;
+        }
+
+        asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
+            this->write_(name, chunk, std::move(handler));
         });
     }
 
@@ -310,7 +310,7 @@ private:
 
 private:
     std::unique_ptr<hta::Directory> directory;
-    std::unordered_map<std::string, hta::Metric&> source_mapping_;
+    std::unordered_map<std::string, std::string> source_mapping_;
     std::mutex strand_lock_;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
