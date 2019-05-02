@@ -83,6 +83,17 @@ public:
         }
     }
 
+    auto register_source_mapping_(const std::string& source, const std::string& name)
+    {
+        auto [it, inserted] = source_mapping_.emplace(source, (*directory)[name]);
+        if (!inserted)
+        {
+            Log::fatal() << "trying to insert the same source name twice: " << source;
+            throw std::logic_error("duplicated source, invalid configuration.");
+        }
+        return it;
+    }
+
     template <class Handler>
     void async_config(const json& config, Handler handler)
     {
@@ -94,6 +105,47 @@ public:
         asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
             Log::debug() << "async directory setup";
             directory = std::make_unique<hta::Directory>(config, true);
+
+            // setup special write mapping
+            auto& metrics = config.at("metrics");
+            if (metrics.is_array())
+            {
+                // Legacy, TODO remove
+                for (const auto& metric_config : metrics)
+                {
+                    auto name = metric_config.at("name").get<std::string>();
+                    auto source = name;
+                    if (metric_config.count("source"))
+                    {
+                        source = metric_config.at("source").get<std::string>();
+                    }
+                    register_source_mapping_(source, name);
+                }
+            }
+            else
+            {
+                assert(metrics.is_object());
+                for (const auto& elem : metrics.items())
+                {
+                    std::string name = elem.key();
+                    const auto& metric_config = elem.value();
+
+                    if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
+                    {
+                        // can't prepare anything yet
+                    }
+                    else
+                    {
+                        auto source = name;
+                        if (metric_config.count("source"))
+                        {
+                            source = metric_config.at("source").get<std::string>();
+                        }
+                        register_source_mapping_(source, name);
+                    }
+                }
+            }
+
             Log::debug() << "async directory complete";
             handler();
         });
@@ -106,8 +158,13 @@ private:
 
         auto begin = std::chrono::system_clock::now();
 
+        auto it = source_mapping_.find(id);
+        if (it == source_mapping_.end())
+        {
+            it = register_source_mapping_(id, id);
+        }
         assert(directory);
-        auto& metric = (*directory)[id];
+        auto& metric = it->second;
         auto max_ts = metric.range().second;
         uint64_t skip_non_monotonic = 0;
         uint64_t skip_nan = 0;
@@ -253,6 +310,7 @@ private:
 
 private:
     std::unique_ptr<hta::Directory> directory;
+    std::unordered_map<std::string, hta::Metric&> source_mapping_;
     std::mutex strand_lock_;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
