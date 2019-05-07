@@ -22,10 +22,10 @@
 
 
 import asyncio
-
 import tempfile
 import json
 import os
+import datetime
 
 import click
 
@@ -34,6 +34,7 @@ from metricq.types import Timestamp
 from metricq import Client
 
 import cloudant
+import pymysql
 
 logger = get_logger()
 
@@ -53,7 +54,7 @@ class FakeAgent(Client):
 
 
 class ImportMetric(object):
-    def __init__(self, metricq_name, import_name, sampling_rate, interval_factor=10,
+    def __init__(self, metricq_name, import_name, sampling_rate=1, interval_factor=10,
                  interval_min=None, interval_max=None):
         self.metricq_name = metricq_name
         self.import_name = import_name
@@ -61,6 +62,7 @@ class ImportMetric(object):
         self.interval_factor = interval_factor
         self.interval_min = interval_min
         self.interval_max = interval_max
+        self.sampling_rate = sampling_rate
 
         if self.interval_min is None:
             self.interval_min = sampling_rate * 40 * 1e9
@@ -85,11 +87,15 @@ class ImportMetric(object):
                 "interval_factor": self.interval_factor,
             }
 
+    def __str__(self):
+        return f'{self.import_name} => {self.metricq_name}, {self.interval_min:,}, {self.interval_max:,}, {self.interval_factor}'
+
 
 class DataheapToHTAImporter(object):
     def __init__(self, rpc_url, token,
-                 couchdb_url, couchdb_user, couchdb_password,
-                 import_host, import_user,  import_password, import_database,
+                 couchdb_url: str, couchdb_user: str, couchdb_password: str,
+                 import_host: str, import_port: int,
+                 import_user: str,  import_password: str, import_database: str,
                  num_workers=3):
         self.rpc_url = rpc_url
         self.token = token
@@ -100,6 +106,7 @@ class DataheapToHTAImporter(object):
         self.couchdb_db_config = self.couchdb_client.create_database("config")
 
         self.import_host = import_host
+        self.import_port = import_port
         self.import_user = import_user
         self.import_password = import_password
         self.import_database = import_database
@@ -112,10 +119,8 @@ class DataheapToHTAImporter(object):
 
         self.num_workers = num_workers
 
-    def register(self, metricq_name, import_name, sampling_rate, interval_factor=10,
-                 interval_min=None, interval_max=None):
-        self.metrics.append(ImportMetric(metricq_name, import_name, sampling_rate, interval_factor,
-                                         interval_min, interval_max))
+    def register(self, metricq_name, import_name, **kwargs):
+        self.metrics.append(ImportMetric(metricq_name, import_name, **kwargs))
 
     @property
     def import_metrics(self):
@@ -136,6 +141,52 @@ class DataheapToHTAImporter(object):
             print('The following metrics have failed to import:')
             for metric in self.failed_imports:
                 print(f' - {metric.metricq_name}')
+
+    def dry_run(self, check_values=False):
+        mysql = pymysql.connect(host=self.import_host, port=self.import_port,
+                                user=self.import_user, passwd=self.import_password,
+                                db=self.import_database)
+        total_count = 0
+        for metric in self.metrics:
+            with mysql.cursor() as cursor:
+                cursor.execute(f"SELECT COUNT(*) as count, "
+                               f"MIN(timestamp) as t_min, MAX(timestamp) as t_max"
+                               f" FROM `{metric.import_name}`")
+                count, t_min, t_max = cursor.fetchone()
+                t_min /= 1e3
+                t_max /= 1e3
+                click.echo(f'{metric.metricq_name:30s} <== {metric.import_name:30s} with {count:12,} entries')
+                click.echo(f'        intervals {metric.interval_min:,}, {metric.interval_max:,}, {metric.interval_factor}')
+
+                dt_min = datetime.datetime.fromtimestamp(t_min)
+                dt_max = datetime.datetime.fromtimestamp(t_max)
+                interval_avg = (t_max - t_min) / count
+                click.echo(f'        time range {dt_min} - {dt_max}, avg interval {interval_avg}')
+                delta = datetime.datetime.now() - dt_max
+                if not (datetime.timedelta() <
+                        delta <
+                        datetime.timedelta(hours=8)):
+                    click.secho(f'suspicious max time {delta}', bg='red', bold=True)
+                    click.confirm('continue?', abort=True)
+
+                expected_interval = 1 / metric.sampling_rate
+                tolerance = 1.5
+                if not (expected_interval / tolerance < interval_avg < expected_interval * tolerance):
+                    click.secho(f'suspicious interval, expected {expected_interval}', bg='red', bold=True)
+                    click.confirm('continue?', abort=True)
+
+                if check_values:
+                    cursor.execute(f"MIN(value) as value_min, MAX(value) as value_max, "
+                                   f" FROM `{metric.import_name}`")
+                    value_min, value_max = cursor.fetchone()
+
+                    click.echo(f'        value range {value_min} to {value_max}')
+                    if not (-1e9 < value_min < value_max < 1e9):
+                        click.secho('suspicious value range', bg='red', bold=True)
+                        click.confirm('continue?', abort=True)
+
+                total_count += count
+        click.echo(f'Total count {total_count:,}, average {int(total_count/len(self.metrics)):,} per metric')
 
     def update_config(self):
         config_metrics = []

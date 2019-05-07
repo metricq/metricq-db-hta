@@ -21,16 +21,18 @@ click_completion.init()
 @click.option('--couchdb-url', default='http://127.0.0.1:5984')
 @click.option('--couchdb-user', default='admin')
 @click.option('--couchdb-password', default='admin', prompt=True)
-@click.option('--import-host', default='127.0.0.1:3306')
+@click.option('--import-host', default='127.0.0.1')
+@click.option('--import-port', default=3306, type=int)
 @click.option('--import-user', default='admin')
 @click.option('--import-password', default='admin', prompt=True)
 @click.option('--import-database', default='db')
 def hdeem_cmd(rpc_url, db_token,
-                 couchdb_url, couchdb_user, couchdb_password,
-                 import_host, import_user,  import_password, import_database):
+              couchdb_url, couchdb_user, couchdb_password,
+              import_host, import_user, import_port, import_password, import_database):
 
     importer = DataheapToHTAImporter(rpc_url, db_token, couchdb_url, couchdb_user, couchdb_password,
-                                     import_host, import_user,  import_password, import_database)
+                                     import_host, import_port,
+                                     import_user,  import_password, import_database)
     for hostid in chain(range(4001, 4232+1), range(5001, 5612+1), range(6001, 6612+1)):
         hostname = f'taurusi{hostid}'
         importer.register(metricq_name=f'taurus.{hostname}.power', import_name=f'{hostname}_watts', sampling_rate=1.0)

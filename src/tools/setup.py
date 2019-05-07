@@ -29,5 +29,5 @@ setup(name='metricq_importer',
       [console_scripts]
       metricq-importer=metricq_importer:importer_cmd
       ''',
-      install_requires=['click', 'click-completion', 'click-log', 'metricq', 'cloudant'],
+      install_requires=['click', 'click-completion', 'click-log', 'metricq', 'cloudant', 'PyMySQL'],
       )
