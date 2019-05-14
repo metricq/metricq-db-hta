@@ -85,33 +85,33 @@ public:
         }
     }
 
-    void register_source_mapping_(const std::string& source, const std::string& name)
+    void register_input_mapping_(const std::string& input, const std::string& name)
     {
         if (auto it_found = mapped_metrics_.find(name); it_found != mapped_metrics_.end())
         {
-            Log::fatal() << "trying to map to a metric multiple times, source: " << source
+            Log::fatal() << "trying to map to a metric multiple times, input: " << input
                          << ", name: " << name;
-            throw std::logic_error("ambiguous source, invalid configuration.");
+            throw std::logic_error("ambiguous input, invalid configuration.");
         }
 
-        auto [it, inserted] = source_mapping_.emplace(source, name);
+        auto [it, inserted] = input_mapping_.emplace(input, name);
         if (!inserted)
         {
-            Log::fatal() << "trying to insert the same source name twice: " << source;
-            throw std::logic_error("duplicated source, invalid configuration.");
+            Log::fatal() << "trying to insert the same input name twice: " << input;
+            throw std::logic_error("duplicated input, invalid configuration.");
         }
         mapped_metrics_.emplace(name);
     }
 
-    std::string get_mapped_name_(const std::string& source)
+    std::string get_mapped_name_(const std::string& input)
     {
         std::lock_guard<std::mutex> guard(mapping_lock_);
-        if (auto it = source_mapping_.find(source); it != source_mapping_.end())
+        if (auto it = input_mapping_.find(input); it != input_mapping_.end())
         {
             return it->second;
         }
-        register_source_mapping_(source, source);
-        return source;
+        register_input_mapping_(input, input);
+        return input;
     }
 
     template <class Handler>
@@ -134,12 +134,12 @@ public:
                 for (const auto& metric_config : metrics)
                 {
                     auto name = metric_config.at("name").get<std::string>();
-                    auto source = name;
-                    if (metric_config.count("source"))
+                    auto input = name;
+                    if (metric_config.count("input"))
                     {
-                        source = metric_config.at("source").get<std::string>();
+                        input = metric_config.at("input").get<std::string>();
                     }
-                    register_source_mapping_(source, name);
+                    register_input_mapping_(input, name);
                 }
             }
             else
@@ -156,12 +156,12 @@ public:
                     }
                     else
                     {
-                        auto source = name;
-                        if (metric_config.count("source"))
+                        auto input = name;
+                        if (metric_config.count("input"))
                         {
-                            source = metric_config.at("source").get<std::string>();
+                            input = metric_config.at("input").get<std::string>();
                         }
-                        register_source_mapping_(source, name);
+                        register_input_mapping_(input, name);
                     }
                 }
             }
@@ -242,10 +242,10 @@ private:
 
 public:
     template <class Handler>
-    void async_write(const std::string& source, const metricq::DataChunk& chunk, Handler handler)
+    void async_write(const std::string& input, const metricq::DataChunk& chunk, Handler handler)
     {
         // note we copy the chunk here as its a reused buffer owned by the original sink
-        std::string name = get_mapped_name_(source);
+        std::string name = get_mapped_name_(input);
 
         asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
             this->write_(name, chunk, std::move(handler));
@@ -388,12 +388,12 @@ private:
     std::unique_ptr<hta::Directory> directory;
     std::mutex mapping_lock_;
     /**
-     * mapping from a source metric name to a actual logical metric name
+     * mapping from a input metric name to a actual logical metric name
      * e.g. foo.bar.power.100Hz => foo.bar.power
      */
-    std::unordered_map<std::string, std::string> source_mapping_;
+    std::unordered_map<std::string, std::string> input_mapping_;
     /**
-     * set of logical metric names that are already included in the source mapping
+     * set of logical metric names that are already included in the input mapping
      * used to avoid ambiguous mappings
      */
     std::unordered_set<std::string> mapped_metrics_;
