@@ -264,26 +264,85 @@ private:
         Log::trace() << "on_history get metric";
         auto& metric = (*directory)[id];
 
-        hta::TimePoint start_time(
-            hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
-        hta::TimePoint end_time(hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
-        auto interval_ns = hta::duration_cast(std::chrono::nanoseconds(content.interval_ns()));
-
-        Log::trace() << "on_history get data";
-        auto rows = metric.retrieve(start_time, end_time, interval_ns);
-        Log::trace() << "on_history got data";
-
-        hta::TimePoint last_time;
-        Log::trace() << "on_history build response";
-        for (auto row : rows)
+        switch (content.type())
         {
-            auto time_delta =
-                std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
-            response.add_time_delta(time_delta.count());
-            response.add_value_min(row.aggregate.minimum);
-            response.add_value_max(row.aggregate.maximum);
-            response.add_value_avg(row.aggregate.mean());
-            last_time = row.time;
+        case metricq::HistoryRequest::AGGREGATE_TIMELINE:
+        {
+            hta::TimePoint start_time(
+                hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
+            hta::TimePoint end_time(
+                hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
+            auto interval_max =
+                hta::duration_cast(std::chrono::nanoseconds(content.interval_max()));
+
+            Log::trace() << "on_history get data";
+            auto rows = metric.retrieve(start_time, end_time, interval_max);
+            Log::trace() << "on_history got data";
+
+            hta::TimePoint last_time;
+            Log::trace() << "on_history build response";
+            for (auto row : rows)
+            {
+                auto time_delta =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
+                response.add_time_delta(time_delta.count());
+                auto aggregate = response.add_aggregate();
+                aggregate->set_minimum(row.aggregate.minimum);
+                aggregate->set_maximum(row.aggregate.maximum);
+                aggregate->set_sum(row.aggregate.sum);
+                aggregate->set_count(row.aggregate.count);
+                aggregate->set_integral(row.aggregate.integral);
+                aggregate->set_active_time(row.aggregate.active_time.count());
+                last_time = row.time;
+            }
+        }
+        break;
+        case metricq::HistoryRequest::AGGREGATE:
+        {
+            hta::TimePoint start_time(
+                hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
+            hta::TimePoint end_time(
+                hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
+
+            Log::trace() << "on_history get data";
+            auto data = metric.aggregate(start_time, end_time);
+            Log::trace() << "on_history got data";
+
+            Log::trace() << "on_history build response";
+            auto aggregate = response.add_aggregate();
+            aggregate->set_minimum(data.minimum);
+            aggregate->set_maximum(data.maximum);
+            aggregate->set_sum(data.sum);
+            aggregate->set_count(data.count);
+            aggregate->set_integral(data.integral);
+            aggregate->set_active_time(data.active_time.count());
+        }
+        break;
+        case metricq::HistoryRequest::LAST_VALUE:
+        {
+            Log::trace() << "on_history get data";
+            auto ts = hta::TimePoint(hta::Duration(std::numeric_limits<int64_t>::max()));
+            auto data = metric.retrieve(ts, ts, { hta::Scope::extended, hta::Scope::open });
+            Log::trace() << "on_history got data";
+
+            Log::trace() << "on_history build response";
+            if (data.size() == 1)
+            {
+                auto tv = data.back();
+
+                response.add_time_delta(tv.time.time_since_epoch().count());
+                response.add_value(tv.value);
+            }
+            else if (data.size() > 1)
+            {
+                Log::warn() << "Retrieved more than one TimeValue when trying to get last data "
+                               "point in metric '"
+                            << id << "'";
+            }
+        }
+        break;
+        default:
+            Log::warn() << "got unknown HistoryRequest type";
         }
 
         auto duration = std::chrono::system_clock::now() - begin;
@@ -291,14 +350,14 @@ private:
         {
             Log::warn()
                 << "on_history for " << id << "(," << content.start_time() << ","
-                << content.end_time() << "," << content.interval_ns() << ") took "
+                << content.end_time() << "," << content.interval_max() << ") took "
                 << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
                 << " s";
         }
         else
         {
             Log::debug() << "on_history for " << id << "(," << content.start_time() << ","
-                         << content.end_time() << "," << content.interval_ns() << ") took "
+                         << content.end_time() << "," << content.interval_max() << ") took "
                          << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(
                                 duration)
                                 .count()
