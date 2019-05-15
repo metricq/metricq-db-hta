@@ -105,6 +105,7 @@ class DataheapToHTAImporter(object):
                                                       url=couchdb_url, connect=True)
         self.couchdb_session = self.couchdb_client.session()
         self.couchdb_db_config = self.couchdb_client.create_database("config")
+        self.couchdb_db_import = self.couchdb_client.create_database("import")
 
         self.import_host = import_host
         self.import_port = import_port
