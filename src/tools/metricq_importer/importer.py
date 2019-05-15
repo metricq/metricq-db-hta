@@ -81,7 +81,6 @@ class ImportMetric(object):
     @property
     def config(self):
         return {
-                "name": self.metricq_name,
                 "mode": "RW",
                 "interval_min": int(self.interval_min),
                 "interval_max": int(self.interval_max),
@@ -131,7 +130,7 @@ class DataheapToHTAImporter(object):
     def run(self):
         assert self.import_begin is None
         if not click.confirm(f'Please make sure the MetricQ db with the token '
-                             f'{self.token}" is not running! Continue?'):
+                             f'"{self.token}" is not running! Continue?'):
             return
 
         self.update_config()
@@ -191,9 +190,7 @@ class DataheapToHTAImporter(object):
         click.echo(f'Total count {total_count:,}, average {int(total_count/len(self.metrics)):,} per metric')
 
     def update_config(self):
-        config_metrics = []
-        for metric in self.metrics:
-            config_metrics.append(metric.config)
+        config_metrics = {metric.metricq_name: metric.config for metric in self.metrics}
 
         try:
             config_document = self.couchdb_db_config[self.token]
@@ -203,7 +200,7 @@ class DataheapToHTAImporter(object):
         config_document.fetch()
         current_config = dict(config_document)
         current_metrics = current_config["metrics"]
-        current_metric_names = [metric["name"] for metric in current_metrics]
+        current_metric_names = list(current_metrics.keys())
         conflicting_metrics = [metric for metric in self.metrics if metric.metricq_name in current_metric_names]
 
         if conflicting_metrics:
@@ -214,9 +211,7 @@ class DataheapToHTAImporter(object):
             if not click.confirm('Overwrite old entries?'):
                 raise RuntimeError('Please remove the config for the existing metrics or remove them from the import set')
 
-            current_metrics = [metric for metric in current_metrics if metric["name"] not in [metric.metricq_name for metric in conflicting_metrics]]
-
-        current_metrics = current_metrics + config_metrics
+        current_metrics.update(config_metrics)
 
         config_document['metrics'] = current_metrics
         config_document.save()
