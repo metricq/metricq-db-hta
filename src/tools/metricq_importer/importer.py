@@ -274,14 +274,32 @@ class DataheapToHTAImporter(object):
             config['metrics'].append(metric.config)
             json.dump(config, conf)
 
+        args = ("hta_mysql_import",
+                '-m', metric.metricq_name,
+                '--import-metric', metric.import_name,
+                '-c', conffile_name,
+                '--max-timestamp', str(int(self.import_begin.posix_ms)))
+
+        import_data = {
+            '_id': metric.metricq_name,
+            'import_name': metric.import_name,
+            'begin': datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat(),
+            'arguments': args,
+            'config': config,
+        }
+
+        import_doc = self.couchdb_db_import.create_document(import_data)
+        import_doc.save()
+
         try:
-            process = await asyncio.create_subprocess_exec("hta_mysql_import",
-                                                           '-m', metric.metricq_name,
-                                                           '--import-metric', metric.import_name,
-                                                           '-c', conffile_name,
-                                                           '--max-timestamp', str(int(self.import_begin.posix_ms)))
+            process = await asyncio.create_subprocess_exec(args)
 
             ret = await process.wait()
+
+            import_doc['return_code'] = ret
+            import_doc['end'] = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
+            import_doc.save()
+
             if ret != 0:
                 self.failed_imports.append(metric)
         except FileNotFoundError:
