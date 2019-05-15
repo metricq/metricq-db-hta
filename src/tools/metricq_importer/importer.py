@@ -268,7 +268,9 @@ class DataheapToHTAImporter(object):
         with open(conffile, 'w') as conf:
             config = self.import_config.copy()
             config['metrics'] = []
-            config['metrics'].append(metric.config)
+            metric_config = metric.config
+            metric_config['name'] = metric.metricq_name
+            config['metrics'].append(metric_config)
             json.dump(config, conf)
 
         args = ("hta_mysql_import",
