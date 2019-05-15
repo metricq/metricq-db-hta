@@ -54,10 +54,11 @@ class FakeAgent(Client):
 
 
 class ImportMetric(object):
-    def __init__(self, metricq_name, import_name, sampling_rate=1, interval_factor=10,
+    def __init__(self, metricq_name, import_name, dataheap_name=None, sampling_rate=1, interval_factor=10,
                  interval_min=None, interval_max=None):
         self.metricq_name = metricq_name
         self.import_name = import_name
+        self.dataheap_name = dataheap_name
 
         self.interval_factor = interval_factor
         self.interval_min = interval_min
@@ -283,6 +284,7 @@ class DataheapToHTAImporter(object):
         import_data = {
             '_id': metric.metricq_name,
             'import_name': metric.import_name,
+            'dataheap_name': metric.dataheap_name,
             'begin': datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat(),
             'arguments': args,
             'config': config,
