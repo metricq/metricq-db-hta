@@ -290,7 +290,7 @@ class DataheapToHTAImporter(object):
         import_doc.save()
 
         try:
-            process = await asyncio.create_subprocess_exec(args)
+            process = await asyncio.create_subprocess_exec(*args)
 
             ret = await process.wait()
 
