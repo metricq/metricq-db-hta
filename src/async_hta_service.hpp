@@ -203,19 +203,20 @@ private:
             }
             catch (std::exception& ex)
             {
-                Log::fatal() << "failed to insert value for " << id << " ts: " << tv.htv.time
+                Log::fatal() << "[" << id << "] failed to insert ts: " << tv.htv.time
                              << ", value: " << tv.htv.value;
                 throw;
             }
         }
         if (skip_non_monotonic > 0)
         {
-            Log::warn() << "Skipped " << skip_non_monotonic << " non-monotonic of "
+            Log::warn() << "[" << id << "] skipped " << skip_non_monotonic << " non-monotonic of "
                         << chunk.value_size() << " values";
         }
         if (skip_nan > 0)
         {
-            Log::warn() << "Skipped " << skip_nan << " NaNs of " << chunk.value_size() << " values";
+            Log::warn() << "[" << id << "] skipped " << skip_nan << " NaNs of "
+                        << chunk.value_size() << " values";
         }
 
         metric.flush();
@@ -223,14 +224,13 @@ private:
         if (duration > std::chrono::seconds(1))
         {
             Log::warn()
-                << "on_data for " << id << " with " << chunk.value_size() << " entries took "
+                << "[" << id << "] on_data with " << chunk.value_size() << " entries took "
                 << std::chrono::duration_cast<std::chrono::duration<float>>(duration).count()
                 << " s";
         }
         else
         {
-            Log::debug() << "on_data for " << id << " with " << chunk.value_size()
-                         << " entries took "
+            Log::debug() << "[" << id << "] on_data with " << chunk.value_size() << " entries took "
                          << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(
                                 duration)
                                 .count()
