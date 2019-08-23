@@ -283,10 +283,8 @@ private:
             Log::trace() << "on_history build response";
             for (auto row : rows)
             {
-                // We use end_time here to have a consistent LAST semantic in the absence of the
-                // interval itself
-                auto time_delta = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    row.end_time() - last_time);
+                auto time_delta =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
                 response.add_time_delta(time_delta.count());
                 auto aggregate = response.add_aggregate();
                 aggregate->set_minimum(row.aggregate.minimum);
@@ -295,7 +293,7 @@ private:
                 aggregate->set_count(row.aggregate.count);
                 aggregate->set_integral(row.aggregate.integral);
                 aggregate->set_active_time(row.aggregate.active_time.count());
-                last_time = row.end_time();
+                last_time = row.time;
             }
         }
         break;
