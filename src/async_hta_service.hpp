@@ -295,7 +295,7 @@ private:
                 aggregate->set_count(row.aggregate.count);
                 aggregate->set_integral(row.aggregate.integral);
                 aggregate->set_active_time(row.aggregate.active_time.count());
-                last_time = row.time;
+                last_time = row.end_time();
             }
         }
         break;
