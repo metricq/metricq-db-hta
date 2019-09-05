@@ -297,6 +297,52 @@ private:
             }
         }
         break;
+        case metricq::HistoryRequest::FLEX_TIMELINE:
+        {
+            hta::TimePoint start_time(
+                hta::duration_cast(std::chrono::nanoseconds(content.start_time())));
+            hta::TimePoint end_time(
+                hta::duration_cast(std::chrono::nanoseconds(content.end_time())));
+            auto interval_max =
+                hta::duration_cast(std::chrono::nanoseconds(content.interval_max()));
+
+            Log::trace() << "on_history get data";
+            auto flex = metric.retrieve_flex(start_time, end_time, interval_max);
+            Log::trace() << "on_history got data";
+
+            hta::TimePoint last_time;
+            if (auto rows_p = std::get_if<std::vector<hta::Row>>(&flex))
+            {
+                for (auto row : *rows_p)
+                {
+                    auto time_delta =
+                        std::chrono::duration_cast<std::chrono::nanoseconds>(row.time - last_time);
+                    response.add_time_delta(time_delta.count());
+                    auto aggregate = response.add_aggregate();
+                    aggregate->set_minimum(row.aggregate.minimum);
+                    aggregate->set_maximum(row.aggregate.maximum);
+                    aggregate->set_sum(row.aggregate.sum);
+                    aggregate->set_count(row.aggregate.count);
+                    aggregate->set_integral(row.aggregate.integral);
+                    aggregate->set_active_time(row.aggregate.active_time.count());
+                    last_time = row.time;
+                }
+            }
+            else
+            {
+                for (auto tv : std::get<std::vector<hta::TimeValue>>(flex))
+                {
+                    auto time_delta =
+                        std::chrono::duration_cast<std::chrono::nanoseconds>(tv.time - last_time);
+                    response.add_time_delta(time_delta.count());
+                    response.add_value(tv.value);
+                    last_time = tv.time;
+                }
+            }
+
+            Log::trace() << "on_history build response";
+        }
+        break;
         case metricq::HistoryRequest::AGGREGATE:
         {
             hta::TimePoint start_time(
