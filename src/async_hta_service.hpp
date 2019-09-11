@@ -362,6 +362,7 @@ private:
             aggregate->set_count(data.count);
             aggregate->set_integral(data.integral);
             aggregate->set_active_time(data.active_time.count());
+            response.add_time_delta(start_time.time_since_epoch().count());
         }
         break;
         case metricq::HistoryRequest::LAST_VALUE:
