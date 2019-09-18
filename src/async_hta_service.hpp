@@ -418,7 +418,18 @@ public:
     void async_read(const std::string id, const metricq::HistoryRequest& content, Handler handler)
     {
         asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
-            this->read_(id, content, std::move(handler));
+            try
+            {
+                this->read_(id, content, std::move(handler));
+            }
+            catch (std::exception& e)
+            {
+                Log::error()
+                    << "An error occured during the handling of a history request for metricq '"
+                    << id << "': " << e.what();
+
+                // TODO actually notify the sender of the request that something went wrong
+            }
         });
     }
 
