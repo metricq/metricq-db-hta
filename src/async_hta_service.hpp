@@ -237,6 +237,7 @@ private:
                          << " ms";
         }
 
+        stats_.add_write_duration(duration);
         handler();
     }
 
@@ -410,6 +411,7 @@ private:
                                 .count()
                          << " ms";
         }
+        stats_.add_read_duration(duration);
         handler(response);
     }
 
@@ -443,6 +445,55 @@ private:
     }
 
 private:
+    class Stats
+    {
+    public:
+        void add_read_duration(std::chrono::nanoseconds duration)
+        {
+            std::scoped_lock lock(stats_lock_);
+            read_count_++;
+            read_duration_ +=
+                std::chrono::duration_cast<std::chrono::duration<float>>(duration).count();
+            log_stats_();
+        }
+
+        void add_write_duration(std::chrono::nanoseconds duration)
+        {
+            std::scoped_lock lock(stats_lock_);
+            write_count_++;
+            write_duration_ +=
+                std::chrono::duration_cast<std::chrono::duration<float>>(duration).count();
+            log_stats_();
+        }
+
+    private:
+        void log_stats_()
+        {
+            std::scoped_lock lock(stats_lock_);
+            if (last_log_ - metricq::Clock::now() > std::chrono::seconds(10))
+            {
+                Log::info() << "read stats: " << read_duration_ << "s for " << read_count_
+                            << " reads, avg " << read_duration_ / read_count_ << " s";
+                Log::info() << "write stats: " << write_duration_ << "s for " << write_count_
+                            << " reads, avg " << write_duration_ / write_count_ << " s";
+                read_duration_ = 0;
+                write_duration_ = 0;
+                read_count_ = 0;
+                write_count_ = 0;
+                last_log_ = metricq::Clock::now();
+            }
+        }
+
+    private:
+        std::mutex stats_lock_;
+        double_t read_duration_ = 0;
+        size_t read_count_ = 0;
+        double_t write_duration_ = 0;
+        size_t write_count_ = 0;
+        metricq::TimePoint last_log_;
+    };
+
+private:
     std::unique_ptr<hta::Directory> directory;
     std::mutex mapping_lock_;
     /**
@@ -458,4 +509,6 @@ private:
     std::mutex strand_lock_;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
+
+    Stats stats_;
 };
