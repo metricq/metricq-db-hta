@@ -476,7 +476,7 @@ private:
         void log_stats_()
         {
             std::scoped_lock lock(stats_lock_);
-            if (last_log_ - metricq::Clock::now() > std::chrono::seconds(10))
+            if (metricq::Clock::now() - last_log_ > std::chrono::seconds(10))
             {
                 Log::info() << "read stats: " << read_duration_ << "s for " << read_count_
                             << " reads, avg " << read_duration_ / read_count_ << " s";
