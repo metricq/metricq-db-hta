@@ -451,20 +451,24 @@ private:
         template <typename T>
         void add_read_duration(T duration)
         {
-            std::scoped_lock lock(stats_lock_);
-            read_count_++;
-            read_duration_ +=
-                std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+            {
+                std::scoped_lock lock(stats_lock_);
+                read_count_++;
+                read_duration_ +=
+                    std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+            }
             log_stats_();
         }
 
         template <typename T>
         void add_write_duration(T duration)
         {
-            std::scoped_lock lock(stats_lock_);
-            write_count_++;
-            write_duration_ +=
-                std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+            {
+                std::scoped_lock lock(stats_lock_);
+                write_count_++;
+                write_duration_ +=
+                    std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+            }
             log_stats_();
         }
 
