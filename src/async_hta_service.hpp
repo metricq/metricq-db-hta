@@ -238,6 +238,7 @@ private:
         }
 
         stats_.add_write_duration(duration);
+        stats_.decrement_ongoing();
         handler();
     }
 
@@ -247,6 +248,8 @@ public:
     {
         // note we copy the chunk here as its a reused buffer owned by the original sink
         std::string name = get_mapped_name_(input);
+
+        stats_.increment_ongoing();
 
         asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
             this->write_(name, chunk, std::move(handler));
@@ -412,6 +415,7 @@ private:
                          << " ms";
         }
         stats_.add_read_duration(duration);
+        stats_.decrement_ongoing();
         handler(response);
     }
 
@@ -419,6 +423,8 @@ public:
     template <class Handler>
     void async_read(const std::string id, const metricq::HistoryRequest& content, Handler handler)
     {
+        stats_.increment_ongoing();
+
         asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
             try
             {
@@ -472,6 +478,18 @@ private:
             log_stats_();
         }
 
+        void increment_ongoing() {
+            std::scoped_lock lock(stats_lock_);
+            ongoing_requests_count_++;
+            log_stats_();
+        }
+
+        void decrement_ongoing() {
+            std::scoped_lock lock(stats_lock_);
+            ongoing_requests_count_--;
+            log_stats_();
+        }
+
     private:
         void log_stats_()
         {
@@ -481,22 +499,24 @@ private:
             if (duration > std::chrono::seconds(10))
             {
                 Log::info() << "read stats: " << read_duration_ << "s for " << read_count_
-                            << " reads, avg " << read_duration_ / read_count_ << "s, utilization"
+                            << " reads, avg " << read_duration_ / read_count_ << "s, utilization "
                             << read_duration_ /
                                    std::chrono::duration_cast<std::chrono::duration<double>>(
                                        duration)
                                        .count();
                 Log::info() << "write stats: " << write_duration_ << "s for " << write_count_
-                            << " reads, avg " << write_duration_ / write_count_ << "s, utilization"
+                            << " reads, avg " << write_duration_ / write_count_ << "s, utilization "
                             << write_duration_ /
                                    std::chrono::duration_cast<std::chrono::duration<double>>(
                                        duration)
                                        .count();
+                Log::info() << "ongoing requests: " << ongoing_requests_count_;
 
                 read_duration_ = 0;
                 write_duration_ = 0;
                 read_count_ = 0;
                 write_count_ = 0;
+                ongoing_requests_count_ = 0;
                 last_log_ = metricq::Clock::now();
             }
         }
@@ -507,6 +527,7 @@ private:
         size_t read_count_ = 0;
         double write_duration_ = 0;
         size_t write_count_ = 0;
+        size_t ongoing_requests_count_ = 0;
         metricq::TimePoint last_log_;
     };
 
