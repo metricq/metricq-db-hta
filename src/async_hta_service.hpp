@@ -476,12 +476,23 @@ private:
         void log_stats_()
         {
             std::scoped_lock lock(stats_lock_);
-            if (metricq::Clock::now() - last_log_ > std::chrono::seconds(10))
+            auto duration = metricq::Clock::now() - last_log_;
+
+            if (duration > std::chrono::seconds(10))
             {
                 Log::info() << "read stats: " << read_duration_ << "s for " << read_count_
-                            << " reads, avg " << read_duration_ / read_count_ << " s";
+                            << " reads, avg " << read_duration_ / read_count_ << "s, utilization"
+                            << read_duration_ /
+                                   std::chrono::duration_cast<std::chrono::duration<double>>(
+                                       duration)
+                                       .count();
                 Log::info() << "write stats: " << write_duration_ << "s for " << write_count_
-                            << " reads, avg " << write_duration_ / write_count_ << " s";
+                            << " reads, avg " << write_duration_ / write_count_ << "s, utilization"
+                            << write_duration_ /
+                                   std::chrono::duration_cast<std::chrono::duration<double>>(
+                                       duration)
+                                       .count();
+
                 read_duration_ = 0;
                 write_duration_ = 0;
                 read_count_ = 0;
@@ -491,7 +502,7 @@ private:
         }
 
     private:
-        std::mutex stats_lock_;
+        std::recursive_mutex stats_lock_;
         double read_duration_ = 0;
         size_t read_count_ = 0;
         double write_duration_ = 0;
