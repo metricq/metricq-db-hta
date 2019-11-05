@@ -516,7 +516,6 @@ private:
                 write_duration_ = 0;
                 read_count_ = 0;
                 write_count_ = 0;
-                ongoing_requests_count_ = 0;
                 last_log_ = metricq::Clock::now();
             }
         }
