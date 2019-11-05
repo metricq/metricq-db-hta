@@ -448,21 +448,23 @@ private:
     class Stats
     {
     public:
-        void add_read_duration(std::chrono::nanoseconds duration)
+        template <typename T>
+        void add_read_duration(T duration)
         {
             std::scoped_lock lock(stats_lock_);
             read_count_++;
             read_duration_ +=
-                std::chrono::duration_cast<std::chrono::duration<float>>(duration).count();
+                std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             log_stats_();
         }
 
-        void add_write_duration(std::chrono::nanoseconds duration)
+        template <typename T>
+        void add_write_duration(T duration)
         {
             std::scoped_lock lock(stats_lock_);
             write_count_++;
             write_duration_ +=
-                std::chrono::duration_cast<std::chrono::duration<float>>(duration).count();
+                std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             log_stats_();
         }
 
@@ -486,9 +488,9 @@ private:
 
     private:
         std::mutex stats_lock_;
-        double_t read_duration_ = 0;
+        double read_duration_ = 0;
         size_t read_count_ = 0;
-        double_t write_duration_ = 0;
+        double write_duration_ = 0;
         size_t write_count_ = 0;
         metricq::TimePoint last_log_;
     };
