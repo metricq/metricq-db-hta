@@ -505,7 +505,7 @@ private:
                                        duration)
                                        .count();
                 Log::info() << "write stats: " << write_duration_ << "s for " << write_count_
-                            << " reads, avg " << write_duration_ / write_count_ << "s, utilization "
+                            << " writes, avg " << write_duration_ / write_count_ << "s, utilization "
                             << write_duration_ /
                                    std::chrono::duration_cast<std::chrono::duration<double>>(
                                        duration)
