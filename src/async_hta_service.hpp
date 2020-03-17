@@ -128,41 +128,27 @@ public:
 
             // setup special write mapping
             auto& metrics = config.at("metrics");
-            if (metrics.is_array())
+            if (!metrics.is_object())
             {
-                // Legacy, TODO remove
-                for (const auto& metric_config : metrics)
+                throw std::runtime_error("configuration error, metrics entry must be an object");
+            }
+            for (const auto& elem : metrics.items())
+            {
+                std::string name = elem.key();
+                const auto& metric_config = elem.value();
+
+                if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
                 {
-                    auto name = metric_config.at("name").get<std::string>();
+                    // can't prepare anything yet
+                }
+                else
+                {
                     auto input = name;
                     if (metric_config.count("input"))
                     {
                         input = metric_config.at("input").get<std::string>();
                     }
                     register_input_mapping_(input, name);
-                }
-            }
-            else
-            {
-                assert(metrics.is_object());
-                for (const auto& elem : metrics.items())
-                {
-                    std::string name = elem.key();
-                    const auto& metric_config = elem.value();
-
-                    if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
-                    {
-                        // can't prepare anything yet
-                    }
-                    else
-                    {
-                        auto input = name;
-                        if (metric_config.count("input"))
-                        {
-                            input = metric_config.at("input").get<std::string>();
-                        }
-                        register_input_mapping_(input, name);
-                    }
                 }
             }
 
