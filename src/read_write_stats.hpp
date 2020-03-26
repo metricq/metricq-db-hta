@@ -46,7 +46,7 @@ public:
         std::lock_guard lock(stats_lock_);
         read_count_++;
         read_duration_ += std::chrono::duration_cast<metricq::Duration>(duration);
-        decrement_ongoing();
+        decrement_request_counts();
         log_stats();
     }
 
@@ -57,8 +57,15 @@ public:
         std::lock_guard lock(stats_lock_);
         write_count_++;
         write_duration_ += std::chrono::duration_cast<metricq::Duration>(duration);
-        decrement_ongoing();
+        decrement_request_counts();
 
+        log_stats();
+    }
+
+    void increment_pending()
+    {
+        std::lock_guard lock(stats_lock_);
+        pending_requests_count_++;
         log_stats();
     }
 
@@ -70,9 +77,10 @@ public:
     }
 
 private:
-    void decrement_ongoing()
+    void decrement_request_counts()
     {
         ongoing_requests_count_--;
+        pending_requests_count_--;
     }
 
     void log_stats()
@@ -93,7 +101,9 @@ private:
                 << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_)
                            .count() /
                        std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
-            Log::info() << "ongoing requests: " << ongoing_requests_count_;
+            Log::info() << "pending requests: " << pending_requests_count_
+                        << "ongoing requests: " << ongoing_requests_count_ << " utilization "
+                        << ongoing_requests_count_ / pending_requests_count_;
 
             read_duration_ = metricq::Duration(0);
             write_duration_ = metricq::Duration(0);
@@ -109,6 +119,7 @@ private:
     size_t read_count_ = 0;
     metricq::Duration write_duration_ = metricq::Duration(0);
     size_t write_count_ = 0;
+    size_t pending_requests_count_ = 0;
     size_t ongoing_requests_count_ = 0;
     metricq::TimePoint last_log_;
     metricq::Duration duration_between_logs = std::chrono::seconds(10);

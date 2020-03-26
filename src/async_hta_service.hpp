@@ -178,6 +178,7 @@ private:
     {
 
         auto begin = std::chrono::system_clock::now();
+        stats_.increment_ongoing();
 
         assert(directory);
         auto& metric = (*directory)[id];
@@ -249,7 +250,7 @@ public:
         // note we copy the chunk here as its a reused buffer owned by the original sink
         std::string name = get_mapped_name_(input);
 
-        stats_.increment_ongoing();
+        stats_.increment_pending();
 
         asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
             this->write_(name, chunk, std::move(handler));
@@ -261,6 +262,7 @@ private:
     void read_(const std::string& id, const metricq::HistoryRequest& content, Handler handler)
     {
         auto begin = std::chrono::system_clock::now();
+        stats_.increment_ongoing();
 
         metricq::HistoryResponse response;
         response.set_metric(id);
@@ -422,7 +424,7 @@ public:
     template <class Handler>
     void async_read(const std::string id, const metricq::HistoryRequest& content, Handler handler)
     {
-        stats_.increment_ongoing();
+        stats_.increment_pending();
 
         asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
             try
