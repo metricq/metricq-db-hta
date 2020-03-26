@@ -478,13 +478,15 @@ private:
             log_stats_();
         }
 
-        void increment_ongoing() {
+        void increment_ongoing()
+        {
             std::scoped_lock lock(stats_lock_);
             ongoing_requests_count_++;
             log_stats_();
         }
 
-        void decrement_ongoing() {
+        void decrement_ongoing()
+        {
             std::scoped_lock lock(stats_lock_);
             ongoing_requests_count_--;
             log_stats_();
@@ -505,7 +507,8 @@ private:
                                        duration)
                                        .count();
                 Log::info() << "write stats: " << write_duration_ << "s for " << write_count_
-                            << " writes, avg " << write_duration_ / write_count_ << "s, utilization "
+                            << " writes, avg " << write_duration_ / write_count_
+                            << "s, utilization "
                             << write_duration_ /
                                    std::chrono::duration_cast<std::chrono::duration<double>>(
                                        duration)
