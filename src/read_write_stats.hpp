@@ -81,7 +81,7 @@ private:
     {
         auto duration = metricq::Clock::now() - last_log_;
 
-        if (duration > std::chrono::seconds(10))
+        if (duration > duration_between_logs)
         {
             Log::info()
                 << "read stats: " << read_duration_ << "s for " << read_count_ << " reads, avg "
@@ -111,4 +111,5 @@ private:
     size_t write_count_ = 0;
     size_t ongoing_requests_count_ = 0;
     metricq::TimePoint last_log_;
+    metricq::Duration duration_between_logs = std::chrono::seconds(10);
 };
