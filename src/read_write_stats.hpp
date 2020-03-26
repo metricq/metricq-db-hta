@@ -102,7 +102,7 @@ private:
                            .count() /
                        std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             Log::info() << "pending requests: " << pending_requests_count_
-                        << "ongoing requests: " << ongoing_requests_count_ << " utilization "
+                        << ", ongoing requests: " << ongoing_requests_count_ << ", utilization "
                         << ongoing_requests_count_ / pending_requests_count_;
 
             read_duration_ = metricq::Duration(0);
