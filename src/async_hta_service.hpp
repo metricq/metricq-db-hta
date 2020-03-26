@@ -30,6 +30,7 @@
 #pragma once
 
 #include "log.hpp"
+#include "read_write_stats.hpp"
 
 #include <hta/directory.hpp>
 #include <hta/hta.hpp>
@@ -238,7 +239,6 @@ private:
         }
 
         stats_.add_write_duration(duration);
-        stats_.decrement_ongoing();
         handler();
     }
 
@@ -415,7 +415,6 @@ private:
                          << " ms";
         }
         stats_.add_read_duration(duration);
-        stats_.decrement_ongoing();
         handler(response);
     }
 
@@ -449,89 +448,6 @@ private:
         auto it = strands_.try_emplace(id, pool_->get_executor());
         return it.first->second;
     }
-
-private:
-    class Stats
-    {
-    public:
-        template <typename T>
-        void add_read_duration(T duration)
-        {
-            {
-                std::scoped_lock lock(stats_lock_);
-                read_count_++;
-                read_duration_ +=
-                    std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
-            }
-            log_stats_();
-        }
-
-        template <typename T>
-        void add_write_duration(T duration)
-        {
-            {
-                std::scoped_lock lock(stats_lock_);
-                write_count_++;
-                write_duration_ +=
-                    std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
-            }
-            log_stats_();
-        }
-
-        void increment_ongoing()
-        {
-            std::scoped_lock lock(stats_lock_);
-            ongoing_requests_count_++;
-            log_stats_();
-        }
-
-        void decrement_ongoing()
-        {
-            std::scoped_lock lock(stats_lock_);
-            ongoing_requests_count_--;
-            log_stats_();
-        }
-
-    private:
-        void log_stats_()
-        {
-            std::scoped_lock lock(stats_lock_);
-            auto duration = metricq::Clock::now() - last_log_;
-
-            if (duration > std::chrono::seconds(10))
-            {
-                Log::info() << "read stats: " << read_duration_ << "s for " << read_count_
-                            << " reads, avg " << read_duration_ / read_count_ << "s, utilization "
-                            << read_duration_ /
-                                   std::chrono::duration_cast<std::chrono::duration<double>>(
-                                       duration)
-                                       .count();
-                Log::info() << "write stats: " << write_duration_ << "s for " << write_count_
-                            << " writes, avg " << write_duration_ / write_count_
-                            << "s, utilization "
-                            << write_duration_ /
-                                   std::chrono::duration_cast<std::chrono::duration<double>>(
-                                       duration)
-                                       .count();
-                Log::info() << "ongoing requests: " << ongoing_requests_count_;
-
-                read_duration_ = 0;
-                write_duration_ = 0;
-                read_count_ = 0;
-                write_count_ = 0;
-                last_log_ = metricq::Clock::now();
-            }
-        }
-
-    private:
-        std::recursive_mutex stats_lock_;
-        double read_duration_ = 0;
-        size_t read_count_ = 0;
-        double write_duration_ = 0;
-        size_t write_count_ = 0;
-        size_t ongoing_requests_count_ = 0;
-        metricq::TimePoint last_log_;
-    };
 
 private:
     std::unique_ptr<hta::Directory> directory;
