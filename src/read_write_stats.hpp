@@ -1,4 +1,4 @@
-// Copyright (c) 2020, ZIH,
+// Copyright (c) 2019, ZIH,
 // Technische Universitaet Dresden,
 // Federal Republic of Germany
 //
@@ -46,7 +46,7 @@ public:
         std::lock_guard lock(stats_lock_);
         read_count_++;
         read_duration_ +=
-            std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+            std::chrono::duration_cast<metricq::Duration>(duration);
         decrement_ongoing();
         log_stats();
     }
@@ -58,7 +58,7 @@ public:
         std::lock_guard lock(stats_lock_);
         write_count_++;
         write_duration_ +=
-            std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+            std::chrono::duration_cast<metricq::Duration>(duration);
         decrement_ongoing();
 
         log_stats();
@@ -86,17 +86,17 @@ private:
             Log::info()
                 << "read stats: " << read_duration_ << "s for " << read_count_ << " reads, avg "
                 << read_duration_ / read_count_ << "s, utilization "
-                << read_duration_ /
+                << std::chrono::duration_cast<std::chrono::duration<double>>(read_duration_).count() /
                        std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             Log::info()
                 << "write stats: " << write_duration_ << "s for " << write_count_ << " writes, avg "
                 << write_duration_ / write_count_ << "s, utilization "
-                << write_duration_ /
+                << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_).count() /
                        std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             Log::info() << "ongoing requests: " << ongoing_requests_count_;
 
-            read_duration_ = 0;
-            write_duration_ = 0;
+            read_duration_ = metricq::Duration(0);
+            write_duration_ = metricq::Duration(0);
             read_count_ = 0;
             write_count_ = 0;
             last_log_ = metricq::Clock::now();
@@ -105,9 +105,9 @@ private:
 
 private:
     std::mutex stats_lock_;
-    double read_duration_ = 0;
+    metricq::Duration read_duration_ = metricq::Duration(0);
     size_t read_count_ = 0;
-    double write_duration_ = 0;
+    metricq::Duration write_duration_ = metricq::Duration(0);
     size_t write_count_ = 0;
     size_t ongoing_requests_count_ = 0;
     metricq::TimePoint last_log_;
