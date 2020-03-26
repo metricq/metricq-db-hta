@@ -466,5 +466,5 @@ private:
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 
-    Stats stats_;
+    ReadWriteStats stats_;
 };

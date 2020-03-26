@@ -1,4 +1,4 @@
-// Copyright (c) 2019, ZIH,
+// Copyright (c) 2020, ZIH,
 // Technische Universitaet Dresden,
 // Federal Republic of Germany
 //
@@ -36,7 +36,7 @@
 #include <chrono>
 #include <mutex>
 
-class Stats
+class ReadWriteStats
 {
 public:
     template <typename T>
