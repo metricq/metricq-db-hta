@@ -45,8 +45,7 @@ public:
 
         std::lock_guard lock(stats_lock_);
         read_count_++;
-        read_duration_ +=
-            std::chrono::duration_cast<metricq::Duration>(duration);
+        read_duration_ += std::chrono::duration_cast<metricq::Duration>(duration);
         decrement_ongoing();
         log_stats();
     }
@@ -57,8 +56,7 @@ public:
 
         std::lock_guard lock(stats_lock_);
         write_count_++;
-        write_duration_ +=
-            std::chrono::duration_cast<metricq::Duration>(duration);
+        write_duration_ += std::chrono::duration_cast<metricq::Duration>(duration);
         decrement_ongoing();
 
         log_stats();
@@ -86,12 +84,14 @@ private:
             Log::info()
                 << "read stats: " << read_duration_ << "s for " << read_count_ << " reads, avg "
                 << read_duration_ / read_count_ << "s, utilization "
-                << std::chrono::duration_cast<std::chrono::duration<double>>(read_duration_).count() /
+                << std::chrono::duration_cast<std::chrono::duration<double>>(read_duration_)
+                           .count() /
                        std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             Log::info()
                 << "write stats: " << write_duration_ << "s for " << write_count_ << " writes, avg "
                 << write_duration_ / write_count_ << "s, utilization "
-                << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_).count() /
+                << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_)
+                           .count() /
                        std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
             Log::info() << "ongoing requests: " << ongoing_requests_count_;
 
