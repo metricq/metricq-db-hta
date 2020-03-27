@@ -117,11 +117,30 @@ public:
     template <class Handler>
     void async_config(const json& config, Handler handler)
     {
-        auto work = asio::make_work_guard(handler);
 
         int threads = config.at("threads");
-        assert(!pool_);
-        pool_ = std::make_unique<asio::thread_pool>(threads);
+
+        if (pool_)
+        {
+            // Reconfigure
+            if (threads != this->pool_threads_)
+            {
+                throw std::runtime_error("changing the number of threads with reconfigure is not "
+                                         "supported, restarting");
+            }
+        }
+        else
+        {
+            if (threads < 1)
+            {
+                throw std::runtime_error("invalid number of worker threads configured");
+            }
+            pool_ = std::make_unique<asio::thread_pool>(threads);
+            pool_threads_ = threads;
+        }
+
+        Log::debug() << "config received, posting to async handler";
+        auto work = asio::make_work_guard(handler);
         asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
             Log::debug() << "async directory setup";
             directory = std::make_unique<hta::Directory>(config, true);
@@ -442,6 +461,7 @@ private:
      */
     std::unordered_set<std::string> mapped_metrics_;
     std::mutex strand_lock_;
+    int pool_threads_ = 0;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 };
