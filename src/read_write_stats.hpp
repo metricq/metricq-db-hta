@@ -43,7 +43,7 @@ public:
     void add_read_duration(T duration)
     {
 
-        std::lock_guard lock(stats_lock_);
+        std::lock_guard lock(stats_mutex_);
         read_count_++;
         read_duration_ += std::chrono::duration_cast<metricq::Duration>(duration);
         decrement_request_counts();
@@ -54,7 +54,7 @@ public:
     void add_write_duration(T duration)
     {
 
-        std::lock_guard lock(stats_lock_);
+        std::lock_guard lock(stats_mutex_);
         write_count_++;
         write_duration_ += std::chrono::duration_cast<metricq::Duration>(duration);
         decrement_request_counts();
@@ -64,14 +64,14 @@ public:
 
     void increment_pending()
     {
-        std::lock_guard lock(stats_lock_);
+        std::lock_guard lock(stats_mutex_);
         pending_requests_count_++;
         log_stats();
     }
 
     void increment_ongoing()
     {
-        std::lock_guard lock(stats_lock_);
+        std::lock_guard lock(stats_mutex_);
         ongoing_requests_count_++;
         log_stats();
     }
@@ -114,7 +114,7 @@ private:
     }
 
 private:
-    std::mutex stats_lock_;
+    std::mutex stats_mutex_;
     metricq::Duration read_duration_ = metricq::Duration(0);
     size_t read_count_ = 0;
     metricq::Duration write_duration_ = metricq::Duration(0);
