@@ -116,8 +116,8 @@ private:
 private:
     std::mutex stats_mutex_;
     metricq::Duration read_duration_ = metricq::Duration(0);
-    size_t read_count_ = 0;
     metricq::Duration write_duration_ = metricq::Duration(0);
+    size_t read_count_ = 0;
     size_t write_count_ = 0;
     size_t pending_requests_count_ = 0;
     size_t ongoing_requests_count_ = 0;
