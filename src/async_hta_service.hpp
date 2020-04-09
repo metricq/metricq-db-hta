@@ -30,6 +30,7 @@
 #pragma once
 
 #include "log.hpp"
+#include "read_write_stats.hpp"
 
 #include <hta/directory.hpp>
 #include <hta/hta.hpp>
@@ -177,6 +178,7 @@ private:
     {
 
         auto begin = std::chrono::system_clock::now();
+        stats_.increment_ongoing();
 
         assert(directory);
         auto& metric = (*directory)[id];
@@ -237,6 +239,7 @@ private:
                          << " ms";
         }
 
+        stats_.add_write_duration(duration);
         handler();
     }
 
@@ -246,6 +249,8 @@ public:
     {
         // note we copy the chunk here as its a reused buffer owned by the original sink
         std::string name = get_mapped_name_(input);
+
+        stats_.increment_pending();
 
         asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
             this->write_(name, chunk, std::move(handler));
@@ -257,6 +262,7 @@ private:
     void read_(const std::string& id, const metricq::HistoryRequest& content, Handler handler)
     {
         auto begin = std::chrono::system_clock::now();
+        stats_.increment_ongoing();
 
         metricq::HistoryResponse response;
         response.set_metric(id);
@@ -410,6 +416,7 @@ private:
                                 .count()
                          << " ms";
         }
+        stats_.add_read_duration(duration);
         handler(response);
     }
 
@@ -417,6 +424,8 @@ public:
     template <class Handler>
     void async_read(const std::string id, const metricq::HistoryRequest& content, Handler handler)
     {
+        stats_.increment_pending();
+
         asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
             try
             {
@@ -458,4 +467,6 @@ private:
     std::mutex strand_lock_;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
+
+    ReadWriteStats stats_;
 };
