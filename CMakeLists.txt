@@ -29,3 +29,6 @@ target_link_libraries(metricq-db-hta
         )
 
 install(TARGETS metricq-db-hta RUNTIME DESTINATION bin)
+
+# Setup cpack
+include(CPack)

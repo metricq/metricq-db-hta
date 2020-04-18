@@ -31,7 +31,6 @@
 
 #include <memory>
 
-
 class Db : public metricq::Db
 {
 public:
