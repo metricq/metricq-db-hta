@@ -89,21 +89,36 @@ private:
 
         if (duration > duration_between_logs)
         {
-            Log::info()
-                << "read stats: " << read_duration_ << "s for " << read_count_ << " reads, avg "
-                << read_duration_ / read_count_ << "s, utilization "
-                << std::chrono::duration_cast<std::chrono::duration<double>>(read_duration_)
-                           .count() /
-                       std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
-            Log::info()
-                << "write stats: " << write_duration_ << "s for " << write_count_ << " writes, avg "
-                << write_duration_ / write_count_ << "s, utilization "
-                << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_)
-                           .count() /
-                       std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
-            Log::info() << "pending requests: " << pending_requests_count_
-                        << ", ongoing requests: " << ongoing_requests_count_ << ", utilization "
-                        << ongoing_requests_count_ / pending_requests_count_;
+            if (read_count_ > 0)
+            {
+                Log::info()
+                    << "read stats: " << read_duration_ << "s for " << read_count_ << " reads, avg "
+                    << read_duration_ / read_count_ << "s, utilization "
+                    << std::chrono::duration_cast<std::chrono::duration<double>>(read_duration_)
+                               .count() /
+                           std::chrono::duration_cast<std::chrono::duration<double>>(duration)
+                               .count();
+            }
+            if (write_count_ > 0)
+            {
+                Log::info()
+                    << "write stats: " << write_duration_ << "s for " << write_count_
+                    << " writes, avg " << write_duration_ / write_count_ << "s, utilization "
+                    << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_)
+                               .count() /
+                           std::chrono::duration_cast<std::chrono::duration<double>>(duration)
+                               .count();
+            }
+            if (pending_requests_count_ > 0)
+            {
+                Log::info() << "pending requests: " << pending_requests_count_
+                            << ", ongoing requests: " << ongoing_requests_count_ << ", utilization "
+                            << ongoing_requests_count_ / pending_requests_count_;
+            }
+            if (read_count_ + write_count_ + pending_requests_count_ == 0)
+            {
+                Log::info() << "no activity";
+            }
 
             read_duration_ = metricq::Duration(0);
             write_duration_ = metricq::Duration(0);
