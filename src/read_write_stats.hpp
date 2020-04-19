@@ -92,8 +92,8 @@ private:
             if (read_count_ > 0)
             {
                 Log::info()
-                    << "read stats: " << read_duration_ << "s for " << read_count_ << " reads, avg "
-                    << read_duration_ / read_count_ << "s, utilization "
+                    << "read stats: " << read_duration_ << " ns for " << read_count_
+                    << " reads, avg " << read_duration_ / read_count_ << " ns, utilization "
                     << std::chrono::duration_cast<std::chrono::duration<double>>(read_duration_)
                                .count() /
                            std::chrono::duration_cast<std::chrono::duration<double>>(duration)
@@ -102,8 +102,8 @@ private:
             if (write_count_ > 0)
             {
                 Log::info()
-                    << "write stats: " << write_duration_ << "s for " << write_count_
-                    << " writes, avg " << write_duration_ / write_count_ << "s, utilization "
+                    << "write stats: " << write_duration_ << " ns for " << write_count_
+                    << " writes, avg " << write_duration_ / write_count_ << " ns, utilization "
                     << std::chrono::duration_cast<std::chrono::duration<double>>(write_duration_)
                                .count() /
                            std::chrono::duration_cast<std::chrono::duration<double>>(duration)
