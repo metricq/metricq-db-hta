@@ -152,6 +152,7 @@ public:
             {
                 throw std::runtime_error("configuration error, metrics entry must be an object");
             }
+            std::vector<std::string> subscribe_metrics;
             for (const auto& elem : metrics.items())
             {
                 std::string name = elem.key();
@@ -168,12 +169,13 @@ public:
                     {
                         input = metric_config.at("input").get<std::string>();
                     }
+                    subscribe_metrics.emplace_back(input);
                     register_input_mapping_(input, name);
                 }
             }
 
             Log::debug() << "async directory complete";
-            handler();
+            handler(subscribe_metrics);
         });
     }
 
