@@ -137,5 +137,5 @@ private:
     size_t pending_requests_count_ = 0;
     size_t ongoing_requests_count_ = 0;
     metricq::TimePoint last_log_;
-    metricq::Duration duration_between_logs = std::chrono::seconds(10);
+    metricq::Duration duration_between_logs = std::chrono::seconds(60);
 };
