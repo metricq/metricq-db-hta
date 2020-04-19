@@ -496,14 +496,13 @@ private:
         return it.first->second;
     }
 
-    std::vector<std::string> get_subscribe_metrics() const
+    json get_subscribe_metrics() const
     {
         // assumes there already is a mapping_lock_
-        std::vector<std::string> ret;
-        ret.reserve(input_mapping_.size());
+        json ret = json::array();
         for (const auto& elem : input_mapping_)
         {
-            ret.emplace_back(elem.first);
+            ret.push_back(json{ { "input", elem.first }, { "name", elem.second } });
         }
         return ret;
     }
