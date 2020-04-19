@@ -71,6 +71,7 @@ struct TimeValue
     hta::TimeValue htv;
 };
 
+// Most of the big methods are templated due to the Handler callback type, so this is head-only
 class AsyncHtaService
 {
 public:
@@ -118,10 +119,61 @@ public:
     template <class Handler>
     void async_config(const json& config, Handler handler)
     {
-
+        // TODO break down this method to smaller pieces
         int threads = config.at("threads");
 
-        if (pool_)
+        const auto& metrics = config.at("metrics");
+        if (!metrics.is_object())
+        {
+            throw std::runtime_error("configuration error, metrics entry must be an object");
+        }
+        for (const auto& elem : metrics.items())
+        {
+            const auto& metric_config = elem.value();
+            if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
+            {
+                // Not supported by db.subscribe in the manager at the moment
+                throw std::runtime_error("adding prefix metrics no longer supported");
+            }
+        }
+
+        if (!pool_)
+        {
+            // Initial configure
+            if (threads < 1)
+            {
+                throw std::runtime_error("invalid number of worker threads configured");
+            }
+            pool_ = std::make_unique<asio::thread_pool>(threads);
+            pool_threads_ = threads;
+
+            auto work = asio::make_work_guard(handler);
+            asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
+                Log::info() << "setting up HTA::Directory";
+                std::lock_guard<std::mutex> guard(mapping_lock_);
+
+                assert(!directory);
+                directory = std::make_unique<hta::Directory>(config, true);
+
+                // setup special write mapping
+                const auto& metrics = config.at("metrics");
+                for (const auto& elem : metrics.items())
+                {
+                    std::string name = elem.key();
+                    const auto& metric_config = elem.value();
+                    auto input = name;
+                    if (metric_config.count("input"))
+                    {
+                        input = metric_config.at("input").get<std::string>();
+                    }
+                    register_input_mapping_(input, name);
+                }
+
+                Log::debug() << "async directory complete";
+                handler(get_subscribe_metrics());
+            });
+        }
+        else
         {
             // Reconfigure
             if (threads != this->pool_threads_)
@@ -129,54 +181,40 @@ public:
                 throw std::runtime_error("changing the number of threads with reconfigure is not "
                                          "supported, restarting");
             }
-        }
-        else
-        {
-            if (threads < 1)
-            {
-                throw std::runtime_error("invalid number of worker threads configured");
-            }
-            pool_ = std::make_unique<asio::thread_pool>(threads);
-            pool_threads_ = threads;
-        }
-
-        Log::debug() << "config received, posting to async handler";
-        auto work = asio::make_work_guard(handler);
-        asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
-            Log::debug() << "async directory setup";
-            directory = std::make_unique<hta::Directory>(config, true);
-
-            // setup special write mapping
-            auto& metrics = config.at("metrics");
-            if (!metrics.is_object())
-            {
-                throw std::runtime_error("configuration error, metrics entry must be an object");
-            }
-            std::vector<std::string> subscribe_metrics;
-            for (const auto& elem : metrics.items())
-            {
-                std::string name = elem.key();
-                const auto& metric_config = elem.value();
-
-                if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
+            // Careful, this is tricky
+            // We can't just remake the entire directory, this would mess with in-flight operations
+            // But it's also easy to get into a deadlock situation if we try to make a big r/w lock
+            // So for now, we only support *adding* metrics. This should be fine.
+            Log::debug() << "updated config received, posting to async handler";
+            auto work = asio::make_work_guard(handler);
+            asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
+                std::lock_guard<std::mutex> guard(mapping_lock_);
+                Log::info() << "handling dynamic reconfiguration";
+                const auto& metrics = config.at("metrics");
+                for (const auto& elem : metrics.items())
                 {
-                    // can't prepare anything yet
-                }
-                else
-                {
+                    std::string name = elem.key();
+                    const auto& metric_config = elem.value();
+
                     auto input = name;
                     if (metric_config.count("input"))
                     {
                         input = metric_config.at("input").get<std::string>();
                     }
-                    subscribe_metrics.emplace_back(input);
+                    if (mapped_metrics_.count(name))
+                    {
+                        // metric already defined
+                        // TODO check for consistent input mapping
+                        continue;
+                    }
+
+                    Log::info() << "adding new metric " << name;
+                    directory->emplace(name, metric_config);
                     register_input_mapping_(input, name);
                 }
-            }
-
-            Log::debug() << "async directory complete";
-            handler(subscribe_metrics);
-        });
+                handler(get_subscribe_metrics());
+            });
+        }
     }
 
 private:
@@ -456,6 +494,18 @@ private:
         std::lock_guard<std::mutex> guard(strand_lock_);
         auto it = strands_.try_emplace(id, pool_->get_executor());
         return it.first->second;
+    }
+
+    std::vector<std::string> get_subscribe_metrics() const
+    {
+        // assumes there already is a mapping_lock_
+        std::vector<std::string> ret;
+        ret.reserve(input_mapping_.size());
+        for (const auto& elem : input_mapping_)
+        {
+            ret.emplace_back(elem.first);
+        }
+        return ret;
     }
 
 private:
