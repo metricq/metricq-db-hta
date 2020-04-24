@@ -71,6 +71,7 @@ struct TimeValue
     hta::TimeValue htv;
 };
 
+// Most of the big methods are templated due to the Handler callback type, so this is head-only
 class AsyncHtaService
 {
 public:
@@ -118,23 +119,48 @@ public:
     template <class Handler>
     void async_config(const json& config, Handler handler)
     {
-        auto work = asio::make_work_guard(handler);
-
+        // TODO break down this method to smaller pieces
         int threads = config.at("threads");
-        assert(!pool_);
-        pool_ = std::make_unique<asio::thread_pool>(threads);
-        asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
-            Log::debug() << "async directory setup";
-            directory = std::make_unique<hta::Directory>(config, true);
 
-            // setup special write mapping
-            auto& metrics = config.at("metrics");
-            if (metrics.is_array())
+        const auto& metrics = config.at("metrics");
+        if (!metrics.is_object())
+        {
+            throw std::runtime_error("configuration error, metrics entry must be an object");
+        }
+        for (const auto& elem : metrics.items())
+        {
+            const auto& metric_config = elem.value();
+            if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
             {
-                // Legacy, TODO remove
-                for (const auto& metric_config : metrics)
+                // Not supported by db.subscribe in the manager at the moment
+                throw std::runtime_error("adding prefix metrics no longer supported");
+            }
+        }
+
+        if (!pool_)
+        {
+            // Initial configure
+            if (threads < 1)
+            {
+                throw std::runtime_error("invalid number of worker threads configured");
+            }
+            pool_ = std::make_unique<asio::thread_pool>(threads);
+            pool_threads_ = threads;
+
+            auto work = asio::make_work_guard(handler);
+            asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
+                Log::info() << "setting up HTA::Directory";
+                std::lock_guard<std::mutex> guard(mapping_lock_);
+
+                assert(!directory);
+                directory = std::make_unique<hta::Directory>(config, true);
+
+                // setup special write mapping
+                const auto& metrics = config.at("metrics");
+                for (const auto& elem : metrics.items())
                 {
-                    auto name = metric_config.at("name").get<std::string>();
+                    std::string name = elem.key();
+                    const auto& metric_config = elem.value();
                     auto input = name;
                     if (metric_config.count("input"))
                     {
@@ -142,34 +168,53 @@ public:
                     }
                     register_input_mapping_(input, name);
                 }
-            }
-            else
+
+                Log::debug() << "async directory complete";
+                handler(get_subscribe_metrics());
+            });
+        }
+        else
+        {
+            // Reconfigure
+            if (threads != this->pool_threads_)
             {
-                assert(metrics.is_object());
+                throw std::runtime_error("changing the number of threads with reconfigure is not "
+                                         "supported, restarting");
+            }
+            // Careful, this is tricky
+            // We can't just remake the entire directory, this would mess with in-flight operations
+            // But it's also easy to get into a deadlock situation if we try to make a big r/w lock
+            // So for now, we only support *adding* metrics. This should be fine.
+            Log::debug() << "updated config received, posting to async handler";
+            auto work = asio::make_work_guard(handler);
+            asio::post(*pool_, [this, config, work, handler = std::move(handler)]() mutable {
+                std::lock_guard<std::mutex> guard(mapping_lock_);
+                Log::info() << "handling dynamic reconfiguration";
+                const auto& metrics = config.at("metrics");
                 for (const auto& elem : metrics.items())
                 {
                     std::string name = elem.key();
                     const auto& metric_config = elem.value();
 
-                    if (metric_config.count("prefix") && metric_config.at("prefix").get<bool>())
+                    auto input = name;
+                    if (metric_config.count("input"))
                     {
-                        // can't prepare anything yet
+                        input = metric_config.at("input").get<std::string>();
                     }
-                    else
+                    if (mapped_metrics_.count(name))
                     {
-                        auto input = name;
-                        if (metric_config.count("input"))
-                        {
-                            input = metric_config.at("input").get<std::string>();
-                        }
-                        register_input_mapping_(input, name);
+                        // metric already defined
+                        // TODO check for consistent input mapping
+                        continue;
                     }
-                }
-            }
 
-            Log::debug() << "async directory complete";
-            handler();
-        });
+                    Log::info() << "adding new metric " << name;
+                    directory->emplace(name, metric_config);
+                    register_input_mapping_(input, name);
+                }
+                handler(get_subscribe_metrics());
+            });
+        }
     }
 
 private:
@@ -451,6 +496,17 @@ private:
         return it.first->second;
     }
 
+    json get_subscribe_metrics() const
+    {
+        // assumes there already is a mapping_lock_
+        json ret = json::array();
+        for (const auto& elem : input_mapping_)
+        {
+            ret.push_back(json{ { "input", elem.first }, { "name", elem.second } });
+        }
+        return ret;
+    }
+
 private:
     std::unique_ptr<hta::Directory> directory;
     std::mutex mapping_lock_;
@@ -465,6 +521,7 @@ private:
      */
     std::unordered_set<std::string> mapped_metrics_;
     std::mutex strand_lock_;
+    int pool_threads_ = 0;
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 
