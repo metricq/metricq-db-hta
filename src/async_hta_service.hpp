@@ -73,8 +73,24 @@ struct TimeValue
 
 struct LoggingConfig
 {
-    bool log_nan_values = false;
-    bool log_non_monotonic_values = true;
+    LoggingConfig() = default;
+
+    LoggingConfig(metricq::json& config)
+    {
+        try
+        {
+            auto logging = config.at("logging");
+            nan_values = logging.value<bool>("nan_values", true);
+            non_monotonic_values = logging.value<bool>("non_monotonic_values", true);
+        }
+        catch (std::exception& e)
+        {
+            Log::info() << "Couldn't parse logging section of the config: " << e.what();
+        }
+    }
+
+    bool nan_values = true;
+    bool non_monotonic_values = true;
 };
 
 // Most of the big methods are templated due to the Handler callback type, so this is head-only
@@ -143,16 +159,7 @@ public:
             }
         }
 
-        try
-        {
-            auto logging = config.at("logging");
-            logging_.log_nan_values = logging.at("nan_values").get<bool>();
-            logging_.log_non_monotonic_values = logging.at("non_monotonic_values").get<bool>();
-        }
-        catch (std::exception& e)
-        {
-            Log::info() << "Couldn't parse logging section of the config: " << e.what();
-        }
+        logging_ = LoggingConfig(config);
 
         if (!pool_)
         {
@@ -272,12 +279,12 @@ private:
                 throw;
             }
         }
-        if (logging_.log_non_monotonic_values && skip_non_monotonic > 0)
+        if (logging_.non_monotonic_values && skip_non_monotonic > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_non_monotonic << " non-monotonic of "
                         << chunk.value_size() << " values";
         }
-        if (logging_.log_nan_values && skip_nan > 0)
+        if (logging_.nan_values && skip_nan > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_nan << " NaNs of "
                         << chunk.value_size() << " values";
