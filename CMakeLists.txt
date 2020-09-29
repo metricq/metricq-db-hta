@@ -1,6 +1,6 @@
-project(metricq-db-hta)
+cmake_minimum_required(VERSION 3.13)
 
-cmake_minimum_required(VERSION 3.8)
+project(metricq-db-hta)
 
 include(cmake/DefaultBuildType.cmake)
 include(cmake/GitSubmoduleUpdate.cmake)

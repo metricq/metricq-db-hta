@@ -71,6 +71,12 @@ struct TimeValue
     hta::TimeValue htv;
 };
 
+struct LoggingConfig
+{
+    bool log_nan_values = false;
+    bool log_non_monotonic_values = true;
+};
+
 // Most of the big methods are templated due to the Handler callback type, so this is head-only
 class AsyncHtaService
 {
@@ -135,6 +141,17 @@ public:
                 // Not supported by db.subscribe in the manager at the moment
                 throw std::runtime_error("adding prefix metrics no longer supported");
             }
+        }
+
+        try
+        {
+            auto logging = config.at("logging");
+            logging_.log_nan_values = logging.at("nan_values").get<bool>();
+            logging_.log_non_monotonic_values = logging.at("non_monotonic_values").get<bool>();
+        }
+        catch (std::exception& e)
+        {
+            Log::info() << "Couldn't parse logging section of the config: " << e.what();
         }
 
         if (!pool_)
@@ -255,12 +272,12 @@ private:
                 throw;
             }
         }
-        if (skip_non_monotonic > 0)
+        if (logging_.log_non_monotonic_values && skip_non_monotonic > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_non_monotonic << " non-monotonic of "
                         << chunk.value_size() << " values";
         }
-        if (skip_nan > 0)
+        if (logging_.log_nan_values && skip_nan > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_nan << " NaNs of "
                         << chunk.value_size() << " values";
@@ -526,4 +543,5 @@ private:
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 
     ReadWriteStats stats_;
+    LoggingConfig logging_;
 };
