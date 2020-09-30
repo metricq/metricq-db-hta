@@ -71,6 +71,28 @@ struct TimeValue
     hta::TimeValue htv;
 };
 
+struct LoggingConfig
+{
+    LoggingConfig() = default;
+
+    LoggingConfig(const metricq::json& config)
+    {
+        try
+        {
+            auto logging = config.at("logging");
+            nan_values = logging.value("nan_values", nan_values);
+            non_monotonic_values = logging.value("non_monotonic_values", non_monotonic_values);
+        }
+        catch (std::exception& e)
+        {
+            Log::info() << "Couldn't parse logging section of the config: " << e.what();
+        }
+    }
+
+    bool nan_values = true;
+    bool non_monotonic_values = true;
+};
+
 // Most of the big methods are templated due to the Handler callback type, so this is head-only
 class AsyncHtaService
 {
@@ -136,6 +158,8 @@ public:
                 throw std::runtime_error("adding prefix metrics no longer supported");
             }
         }
+
+        logging_ = LoggingConfig{ config };
 
         if (!pool_)
         {
@@ -237,7 +261,6 @@ private:
                 skip_non_monotonic++;
                 continue;
             }
-            // TODO make this configurable
             if (std::isnan(tv.htv.value))
             {
                 skip_nan++;
@@ -255,12 +278,12 @@ private:
                 throw;
             }
         }
-        if (skip_non_monotonic > 0)
+        if (logging_.non_monotonic_values && skip_non_monotonic > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_non_monotonic << " non-monotonic of "
                         << chunk.value_size() << " values";
         }
-        if (skip_nan > 0)
+        if (logging_.nan_values && skip_nan > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_nan << " NaNs of "
                         << chunk.value_size() << " values";
@@ -526,4 +549,5 @@ private:
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 
     ReadWriteStats stats_;
+    LoggingConfig logging_;
 };
