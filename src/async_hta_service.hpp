@@ -80,8 +80,8 @@ struct LoggingConfig
         try
         {
             auto logging = config.at("logging");
-            nan_values = logging.value<bool>("nan_values", true);
-            non_monotonic_values = logging.value<bool>("non_monotonic_values", true);
+            nan_values = logging.value<bool>("nan_values", nan_values);
+            non_monotonic_values = logging.value<bool>("non_monotonic_values", non_monotonic_values);
         }
         catch (std::exception& e)
         {
