@@ -75,13 +75,13 @@ struct LoggingConfig
 {
     LoggingConfig() = default;
 
-    LoggingConfig(metricq::json& config)
+    LoggingConfig(const metricq::json& config)
     {
         try
         {
             auto logging = config.at("logging");
-            nan_values = logging.value<bool>("nan_values", nan_values);
-            non_monotonic_values = logging.value<bool>("non_monotonic_values", non_monotonic_values);
+            nan_values = logging.value("nan_values", nan_values);
+            non_monotonic_values = logging.value("non_monotonic_values", non_monotonic_values);
         }
         catch (std::exception& e)
         {
@@ -159,7 +159,7 @@ public:
             }
         }
 
-        logging_ = LoggingConfig(config);
+        logging_ = LoggingConfig{ config };
 
         if (!pool_)
         {
@@ -261,7 +261,6 @@ private:
                 skip_non_monotonic++;
                 continue;
             }
-            // TODO make this configurable
             if (std::isnan(tv.htv.value))
             {
                 skip_nan++;
