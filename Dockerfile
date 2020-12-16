@@ -22,7 +22,7 @@ WORKDIR /home/metricq/metricq-db-hta/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 2
 RUN make package
 
-FROM ubuntu:eoan
+FROM ubuntu:latest
 LABEL maintainer="franz.hoepfner@tu-dresden.de"
 
 ARG DEBIAN_FRONTEND=noninteractive
