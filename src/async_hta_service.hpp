@@ -327,7 +327,7 @@ public:
 
 private:
     template <typename Handler>
-    void read_(const std::string& id, const metricq::HistoryRequest& content, Handler handler)
+    void read_(const std::string& id, const metricq::HistoryRequest& content, Handler& handler)
     {
         auto begin = std::chrono::system_clock::now();
         stats_.increment_ongoing();
@@ -490,14 +490,14 @@ private:
 
 public:
     template <class Handler>
-    void async_read(const std::string id, const metricq::HistoryRequest& content, Handler handler)
+    void async_read(const std::string& id, const metricq::HistoryRequest& content, Handler handler)
     {
         stats_.increment_pending();
 
         asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
             try
             {
-                this->read_(id, content, std::move(handler));
+                this->read_(id, content, handler);
             }
             catch (std::exception& e)
             {
@@ -505,7 +505,7 @@ public:
                     << "An error occured during the handling of a history request for metricq '"
                     << id << "': " << e.what();
 
-                // TODO actually notify the sender of the request that something went wrong
+                handler.failed(id, e.what());
             }
         });
     }
