@@ -29,12 +29,14 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
+#include "db_stats.hpp"
 #include "log.hpp"
 #include "read_write_stats.hpp"
 
 #include <hta/directory.hpp>
 #include <hta/hta.hpp>
 
+#include <metricq/chrono.hpp>
 #include <metricq/datachunk.pb.h>
 #include <metricq/json.hpp>
 #include <metricq/types.hpp>
@@ -53,7 +55,9 @@
 #include <cassert>
 #include <cmath>
 
+using metricq::Clock;
 using metricq::json;
+using metricq::TimePoint;
 
 // "File is too complex to perform data-flow analysis" is probably not a good sign
 struct TimeValue
@@ -243,11 +247,12 @@ public:
 
 private:
     template <typename Handler>
-    void write_(const std::string& id, const metricq::DataChunk& chunk, Handler handler)
+    void write_(const std::string& id, const metricq::DataChunk& chunk, TimePoint pending_since,
+                Handler handler)
     {
 
         auto begin = std::chrono::system_clock::now();
-        stats_.increment_ongoing();
+        stats_.write_active(begin - pending_since);
 
         assert(directory);
         auto& metric = (*directory)[id];
@@ -307,7 +312,9 @@ private:
                          << " ms";
         }
 
-        stats_.add_write_duration(duration);
+        // We compute raw size of TimeValues and ignore skipped elements for now
+        size_t data_size = chunk.value_size() * sizeof(TimeValue);
+        stats_.write_complete(duration, data_size);
         handler();
     }
 
@@ -318,19 +325,21 @@ public:
         // note we copy the chunk here as its a reused buffer owned by the original sink
         std::string name = get_mapped_name_(input);
 
-        stats_.increment_pending();
-
-        asio::post(get_strand(name), [this, name, chunk, handler = std::move(handler)]() mutable {
-            this->write_(name, chunk, std::move(handler));
-        });
+        auto pending_since = Clock::now();
+        stats_.write_pending();
+        asio::post(get_strand(name),
+                   [this, name, chunk, pending_since, handler = std::move(handler)]() mutable {
+                       this->write_(name, chunk, pending_since, std::move(handler));
+                   });
     }
 
 private:
     template <typename Handler>
-    void read_(const std::string& id, const metricq::HistoryRequest& content, Handler& handler)
+    void read_(const std::string& id, const metricq::HistoryRequest& content,
+               TimePoint pending_since, Handler& handler)
     {
-        auto begin = std::chrono::system_clock::now();
-        stats_.increment_ongoing();
+        auto begin = Clock::now();
+        stats_.read_active(begin - pending_since);
 
         metricq::HistoryResponse response;
         response.set_metric(id);
@@ -338,6 +347,7 @@ private:
         Log::trace() << "on_history get metric";
         auto& metric = (*directory)[id];
 
+        size_t data_size = 0;
         switch (content.type())
         {
         case metricq::HistoryRequest::AGGREGATE_TIMELINE:
@@ -369,6 +379,7 @@ private:
                 aggregate->set_active_time(row.aggregate.active_time.count());
                 last_time = row.time;
             }
+            data_size = sizeof(decltype(rows)::value_type) * rows.size();
         }
         break;
         case metricq::HistoryRequest::FLEX_TIMELINE:
@@ -401,10 +412,12 @@ private:
                     aggregate->set_active_time(row.aggregate.active_time.count());
                     last_time = row.time;
                 }
+                data_size = sizeof(hta::Row) * rows_p->size();
             }
             else
             {
-                for (auto tv : std::get<std::vector<hta::TimeValue>>(flex))
+                const auto& rows = std::get<std::vector<hta::TimeValue>>(flex);
+                for (auto tv : rows)
                 {
                     auto time_delta =
                         std::chrono::duration_cast<std::chrono::nanoseconds>(tv.time - last_time);
@@ -412,6 +425,7 @@ private:
                     response.add_value(tv.value);
                     last_time = tv.time;
                 }
+                data_size = sizeof(hta::TimeValue) * rows.size();
             }
 
             Log::trace() << "on_history build response";
@@ -437,6 +451,7 @@ private:
             aggregate->set_integral(data.integral);
             aggregate->set_active_time(data.active_time.count());
             response.add_time_delta(start_time.time_since_epoch().count());
+            data_size = sizeof(aggregate);
         }
         break;
         case metricq::HistoryRequest::LAST_VALUE:
@@ -453,6 +468,7 @@ private:
 
                 response.add_time_delta(tv.time.time_since_epoch().count());
                 response.add_value(tv.value);
+                data_size = sizeof(tv);
             }
             else if (data.size() > 1)
             {
@@ -484,7 +500,7 @@ private:
                                 .count()
                          << " ms";
         }
-        stats_.add_read_duration(duration);
+        stats_.read_complete(duration, data_size);
         handler(response);
     }
 
@@ -492,17 +508,19 @@ public:
     template <class Handler>
     void async_read(const std::string& id, const metricq::HistoryRequest& content, Handler handler)
     {
-        stats_.increment_pending();
+        stats_.read_pending();
+        auto pending_since = Clock::now();
 
-        asio::post(get_strand(id), [this, id, content, handler = std::move(handler)]() mutable {
+        asio::post(get_strand(id), [this, id, content, pending_since,
+                                    handler = std::move(handler)]() mutable {
             try
             {
-                this->read_(id, content, handler);
+                this->read_(id, content, pending_since, handler);
             }
             catch (std::exception& e)
             {
                 Log::error()
-                    << "An error occured during the handling of a history request for metricq '"
+                    << "An error occurred during the handling of a history request for metricq '"
                     << id << "': " << e.what();
 
                 handler.failed(id, e.what());
@@ -530,6 +548,12 @@ private:
         return ret;
     }
 
+public:
+    DbStats& stats()
+    {
+        return stats_;
+    }
+
 private:
     std::unique_ptr<hta::Directory> directory;
     std::mutex mapping_lock_;
@@ -548,6 +572,6 @@ private:
     std::unique_ptr<asio::thread_pool> pool_;
     std::map<std::string, asio::strand<asio::thread_pool::executor_type>> strands_;
 
-    ReadWriteStats stats_;
+    DbStats stats_;
     LoggingConfig logging_;
 };
