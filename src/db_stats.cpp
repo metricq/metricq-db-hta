@@ -34,7 +34,7 @@
 class StatsCollector
 {
 public:
-    StatsCollector() : previous_dump_time_(metricq::Clock::now())
+    StatsCollector()
     {
     }
 
@@ -85,7 +85,6 @@ public:
 private:
     std::mutex stats_mutex_;
     Stats stats_;
-    metricq::TimePoint previous_dump_time_;
 };
 
 using Metric = metricq::Metric<metricq::Db>;
@@ -138,7 +137,8 @@ public:
 
         active_count_.metadata.unit("");
         active_count_.metadata.quantity("");
-        active_count_.metadata.description("number of actively processed {}-requests");
+        active_count_.metadata.description(
+            fmt::format("number of actively processed {}-requests", read_or_write));
         active_count_.metadata.scope(metricq::Metadata::Scope::point);
         active_count_.metadata.rate(rate);
     }
@@ -154,8 +154,8 @@ public:
         active_time_.send({ time, std::chrono::duration_cast<std::chrono::duration<double>>(
                                       stats.active_duration_)
                                       .count() });
-        pending_count_.send({ time, (double)stats.pending_count_ });
-        active_count_.send({ time, (double)stats.active_count_ });
+        pending_count_.send({ time, static_cast<double>(stats.pending_count_) });
+        active_count_.send({ time, static_cast<double>(stats.active_count_) });
     }
 
 private:
@@ -182,10 +182,8 @@ public:
         double duration =
             std::chrono::duration_cast<std::chrono::duration<double>>(time - previous_collect_time_)
                 .count();
-        auto read_stats = read.collect();
-        auto write_stats = write.collect();
-        read_metrics_.write(read_stats, time, duration);
-        write_metrics_.write(write_stats, time, duration);
+        read_metrics_.write(read.collect(), time, duration);
+        write_metrics_.write(write.collect(), time, duration);
         previous_collect_time_ = time;
     }
 
