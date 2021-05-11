@@ -75,6 +75,21 @@ void Db::on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion
         {
             throw std::runtime_error("rate for stats results in invalid interval");
         }
+        if (stats_timer_.running())
+        {
+            declare_metrics();
+            stats_timer_.cancel();
+            stats_timer_.start(stats_interval_);
+        }
+    }
+    else
+    {
+        if (stats_interval_.count() > 0)
+        {
+            stats_timer_.cancel();
+            stats_interval_ = metricq::Duration(0);
+            async_hta.stats().reset();
+        }
     }
     async_hta.async_config(config, std::move(complete));
 }
