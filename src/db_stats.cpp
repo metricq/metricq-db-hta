@@ -192,8 +192,11 @@ public:
         double duration =
             std::chrono::duration_cast<std::chrono::duration<double>>(time - previous_collect_time_)
                 .count();
-        read_metrics_.write(read.collect(), time, duration);
-        write_metrics_.write(write.collect(), time, duration);
+        // collect stats as fast as possible without delaying due to write
+        auto read_stats = read.collect();
+        auto write_stats = write.collect();
+        read_metrics_.write(read_stats, time, duration);
+        write_metrics_.write(write_stats, time, duration);
         previous_collect_time_ = time;
     }
 
