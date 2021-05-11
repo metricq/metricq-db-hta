@@ -57,6 +57,5 @@ protected:
 private:
     AsyncHtaService async_hta;
     asio::signal_set signals_;
-    metricq::Duration stats_interval_{ 0 };
     metricq::Timer stats_timer_;
 };

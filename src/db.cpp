@@ -69,26 +69,36 @@ void Db::on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion
         {
             throw std::runtime_error("invalid rate configured for stats");
         }
-        async_hta.stats().init(*this, prefix, rate);
-        stats_interval_ = metricq::duration_cast(std::chrono::duration<double>(1 / rate));
-        if (stats_interval_.count() <= 0)
+        auto stats_interval = metricq::duration_cast(std::chrono::duration<double>(1 / rate));
+        if (stats_interval.count() <= 0)
         {
             throw std::runtime_error("rate for stats results in invalid interval");
         }
+
+        async_hta.stats().init(*this, prefix, rate);
+        declare_metrics();
         if (stats_timer_.running())
         {
-            declare_metrics();
             stats_timer_.cancel();
-            stats_timer_.start(stats_interval_);
+            stats_timer_.start(stats_interval);
+        }
+        else
+        {
+            // Collect empty stats right at the beginning
+            async_hta.stats().collect();
+            stats_timer_.start(
+                [this](auto) {
+                    async_hta.stats().collect();
+                    return metricq::Timer::TimerResult::repeat;
+                },
+                stats_interval);
         }
     }
     else
     {
-        if (stats_interval_.count() > 0)
+        if (stats_timer_.running())
         {
             stats_timer_.cancel();
-            stats_interval_ = metricq::Duration(0);
-            async_hta.stats().reset();
         }
     }
     async_hta.async_config(config, std::move(complete));
@@ -96,17 +106,6 @@ void Db::on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion
 
 void Db::on_db_ready()
 {
-    // the initial collect should be empty, and we want that
-    if (stats_interval_.count())
-    {
-        async_hta.stats().collect();
-        stats_timer_.start(
-            [this](auto) {
-                async_hta.stats().collect();
-                return metricq::Timer::TimerResult::repeat;
-            },
-            stats_interval_);
-    }
 }
 
 void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk,

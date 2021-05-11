@@ -19,7 +19,9 @@
 // along with metricq-db-hta.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "db_stats.hpp"
+
 #include "db.hpp"
+#include "log.hpp"
 
 #include <metricq/chrono.hpp>
 #include <metricq/metadata.hpp>
@@ -214,6 +216,13 @@ DbStats::~DbStats()
 
 void DbStats::init(Db& db, const std::string& prefix, double rate)
 {
+    if (impl)
+    {
+        Log::warn() << "Trying to reinitialize DbStats.";
+        Log::warn() << "This is not supported, metadata and metric names will not be updated until "
+                       "restart.";
+        return;
+    }
     impl = std::make_unique<DbStatsImpl>(db, prefix, rate);
 }
 
