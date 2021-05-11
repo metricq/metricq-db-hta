@@ -1,6 +1,6 @@
 [submodule "lib/metricq"]
 	path = lib/metricq
-	url = https://github.com/metricq/metricq-cxx.git
+	url = https://github.com/metricq/metricq-cpp.git
 [submodule "lib/hta"]
 	path = lib/hta
 	url = https://github.com/metricq/hta.git
