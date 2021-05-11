@@ -20,9 +20,11 @@
 #pragma once
 
 #include "async_hta_service.hpp"
+#include "db_stats.hpp"
 
 #include <metricq/db.hpp>
 #include <metricq/json.hpp>
+#include <metricq/timer.hpp>
 
 #include <metricq/datachunk.pb.h>
 #include <metricq/history.pb.h>
@@ -38,17 +40,23 @@ public:
 
 protected:
     void on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion complete) override;
+
     void on_history(const std::string& id, const metricq::HistoryRequest& content,
                     metricq::Db::HistoryCompletion complete) override;
+
     void on_db_ready() override;
+
     void on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
                  metricq::Db::DataCompletion complete) override;
 
 protected:
     void on_error(const std::string& message) override;
+
     void on_closed() override;
 
 private:
     AsyncHtaService async_hta;
     asio::signal_set signals_;
+    metricq::Duration stats_interval_{ 0 };
+    metricq::Timer stats_timer_;
 };

@@ -29,7 +29,7 @@
 #include <ratio>
 
 Db::Db(const std::string& manager_host, const std::string& token)
-: metricq::Db(token), signals_(io_service, SIGINT, SIGTERM)
+: metricq::Db(token), signals_(io_service, SIGINT, SIGTERM), stats_timer_(io_service)
 {
     signals_.async_wait([this](auto, auto signal) {
         if (!signal)
@@ -47,22 +47,51 @@ void Db::on_error(const std::string& message)
 {
     Log::error() << "Connection to MetricQ failed: " << message;
     signals_.cancel();
+    stats_timer_.cancel();
 }
 
 void Db::on_closed()
 {
     Log::debug() << "Connection to MetricQ closed.";
     signals_.cancel();
+    stats_timer_.cancel();
 }
 
 void Db::on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion complete)
 {
     Log::debug() << "on_db_config";
+    if (config.count("stats"))
+    {
+        auto stats = config.at("stats");
+        auto prefix = stats.at("prefix").get<std::string>();
+        auto rate = stats.at("rate").get<double>();
+        if (rate <= 0)
+        {
+            throw std::runtime_error("invalid rate configured for stats");
+        }
+        async_hta.stats().init(*this, prefix, rate);
+        stats_interval_ = metricq::duration_cast(std::chrono::duration<double>(1 / rate));
+        if (stats_interval_.count() <= 0)
+        {
+            throw std::runtime_error("rate for stats results in invalid interval");
+        }
+    }
     async_hta.async_config(config, std::move(complete));
 }
 
 void Db::on_db_ready()
 {
+    // the initial collect should be empty, and we want that
+    if (stats_interval_.count())
+    {
+        async_hta.stats().collect();
+        stats_timer_.start(
+            [this](auto) {
+                async_hta.stats().collect();
+                return metricq::Timer::TimerResult::repeat;
+            },
+            stats_interval_);
+    }
 }
 
 void Db::on_data(const std::string& metric_name, const metricq::DataChunk& chunk,
