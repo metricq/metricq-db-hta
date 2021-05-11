@@ -20,7 +20,6 @@
 
 #include "db_stats.hpp"
 #include "db.hpp"
-#include "read_write_stats.hpp"
 
 #include <metricq/chrono.hpp>
 #include <metricq/metadata.hpp>

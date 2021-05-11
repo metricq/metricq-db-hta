@@ -31,7 +31,6 @@
 
 #include "db_stats.hpp"
 #include "log.hpp"
-#include "read_write_stats.hpp"
 
 #include <hta/directory.hpp>
 #include <hta/hta.hpp>
