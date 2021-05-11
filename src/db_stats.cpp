@@ -69,15 +69,24 @@ public:
         size_t data_size_ = 0;
         metricq::Duration pending_duration_ = metricq::Duration(0);
         metricq::Duration active_duration_ = metricq::Duration(0);
+
         size_t pending_count_ = 0;
         size_t active_count_ = 0;
+
+        void reset() noexcept
+        {
+            ready_count_ = 0;
+            data_size_ = 0;
+            pending_duration_ = metricq::Duration(0);
+            active_duration_ = metricq::Duration(0);
+        }
     };
 
     Stats collect()
     {
         std::lock_guard lock(stats_mutex_);
         Stats collected_stats = stats_;
-        stats_ = Stats();
+        stats_.reset();
         return collected_stats;
     }
 
