@@ -43,7 +43,7 @@ public:
     void pending()
     {
         std::lock_guard lock(stats_mutex_);
-        stats_.pending_count_++;
+        stats_.in_pending_state_++;
     }
 
     template <typename T>
@@ -51,9 +51,9 @@ public:
     {
         std::lock_guard lock(stats_mutex_);
         stats_.pending_duration_ += std::chrono::duration_cast<metricq::Duration>(pending_duration);
-        stats_.pending_count_--;
+        stats_.in_pending_state_--;
         stats_.started_count_++;
-        stats_.active_count_++;
+        stats_.in_active_state_++;
     }
 
     template <typename T>
@@ -61,7 +61,7 @@ public:
     {
         std::lock_guard lock(stats_mutex_);
         stats_.completed_count_++;
-        stats_.active_count_--;
+        stats_.in_active_state_--;
         stats_.active_duration_ += std::chrono::duration_cast<metricq::Duration>(active_duration);
         stats_.data_size_ += data_size;
     }
@@ -74,8 +74,11 @@ public:
         metricq::Duration pending_duration_ = metricq::Duration(0);
         metricq::Duration active_duration_ = metricq::Duration(0);
 
-        size_t pending_count_ = 0;
-        size_t active_count_ = 0;
+        // number of requests in pending state, not affected by reset()
+        size_t in_pending_state_ = 0;
+        
+        // number of requests in active state, not affected by reset()
+        size_t in_active_state_ = 0;
 
         void reset() noexcept
         {
@@ -137,7 +140,7 @@ public:
         active_utilization_.metadata.unit("");
         active_utilization_.metadata.quantity("utilization");
         active_utilization_.metadata.description(
-            fmt::format("average utilization for {}-requests were being processed", read_or_write));
+            fmt::format("fraction of time spent on processing {}-requests", read_or_write));
         active_utilization_.metadata.scope(metricq::Metadata::Scope::last);
         active_utilization_.metadata.rate(rate);
 
@@ -159,7 +162,7 @@ public:
     void write(StatsCollector::Stats stats, metricq::TimePoint time, double duration)
     {
         assert(duration > 0);
-        request_rate_.send({ time, stats.ready_count_ / duration });
+        request_rate_.send({ time, stats.completed_count_ / duration });
         data_rate_.send({ time, stats.data_size_ / duration });
         pending_time_.send({ time, std::chrono::duration_cast<std::chrono::duration<double>>(
                                        stats.pending_duration_)
@@ -169,8 +172,8 @@ public:
                                              stats.active_duration_)
                                                  .count() /
                                              duration });
-        pending_count_.send({ time, static_cast<double>(stats.pending_count_) });
-        active_count_.send({ time, static_cast<double>(stats.active_count_) });
+        pending_count_.send({ time, static_cast<double>(stats.in_pending_state_) });
+        active_count_.send({ time, static_cast<double>(stats.in_active_state_) });
     }
 
 private:
