@@ -164,10 +164,19 @@ public:
         assert(duration > 0);
         request_rate_.send({ time, stats.completed_count_ / duration });
         data_rate_.send({ time, stats.data_size_ / duration });
-        pending_time_.send({ time, std::chrono::duration_cast<std::chrono::duration<double>>(
-                                       stats.pending_duration_)
-                                           .count() /
-                                       stats.started_count_ });
+        double pending_time = 0;
+        if (stats.started_count_ > 0)
+        {
+            pending_time =
+                std::chrono::duration_cast<std::chrono::duration<double>>(stats.pending_duration_)
+                    .count() /
+                stats.started_count_;
+        }
+        else
+        {
+            assert(stats.pending_duration_.count() == 0);
+        }
+        pending_time_.send({ time, pending_time });
         active_utilization_.send({ time, std::chrono::duration_cast<std::chrono::duration<double>>(
                                              stats.active_duration_)
                                                  .count() /
