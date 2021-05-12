@@ -76,7 +76,7 @@ public:
 
         // number of requests in pending state, not affected by reset()
         size_t in_pending_state_ = 0;
-        
+
         // number of requests in active state, not affected by reset()
         size_t in_active_state_ = 0;
 
