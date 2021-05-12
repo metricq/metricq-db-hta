@@ -113,7 +113,7 @@ public:
     : request_rate_(writer.output_metric(prefix + read_or_write + ".request.rate")),
       data_rate_(writer.output_metric(prefix + read_or_write + ".data.rate")),
       pending_time_(writer.output_metric(prefix + read_or_write + ".pending.time")),
-      active_utilization_(writer.output_metric(prefix + read_or_write + ".active.utilization")),
+      active_utilization_(writer.output_metric(prefix + read_or_write + ".utilization")),
       pending_count_(writer.output_metric(prefix + read_or_write + ".pending.count")),
       active_count_(writer.output_metric(prefix + read_or_write + ".active.count"))
     {
