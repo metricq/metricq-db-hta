@@ -44,11 +44,15 @@ public:
 
     void read_complete(metricq::Duration active_duration, std::size_t data_size);
 
+    void read_failed(metricq::Duration active_duration);
+
     void write_pending();
 
     void write_active(metricq::Duration pending_duration);
 
     void write_complete(metricq::Duration active_duration, std::size_t data_size);
+
+    void write_failed(metricq::Duration active_duration);
 
     void collect();
 
@@ -56,4 +60,68 @@ private:
     class DbStatsImpl;
 
     std::unique_ptr<DbStatsImpl> impl;
+};
+
+class DbStatsReadTransaction
+{
+public:
+    DbStatsReadTransaction(DbStats& stats, metricq::TimePoint pending_since)
+    : begin_(metricq::Clock::now()), stats_(stats)
+    {
+        stats_.read_active(begin_ - pending_since);
+    }
+
+    ~DbStatsReadTransaction()
+    {
+        if (!success_)
+        {
+            stats_.read_failed(metricq::Clock::now() - begin_);
+        }
+    }
+
+    metricq::Duration completed(std::size_t data_size)
+    {
+        auto duration = metricq::Clock::now() - begin_;
+        stats_.read_complete(duration, data_size);
+        success_ = true;
+
+        return duration;
+    }
+
+private:
+    metricq::TimePoint begin_;
+    DbStats& stats_;
+    bool success_ = false;
+};
+
+class DbStatsWriteTransaction
+{
+public:
+    DbStatsWriteTransaction(DbStats& stats, metricq::TimePoint pending_since)
+    : begin_(metricq::Clock::now()), stats_(stats)
+    {
+        stats_.write_active(begin_ - pending_since);
+    }
+
+    ~DbStatsWriteTransaction()
+    {
+        if (!success_)
+        {
+            stats_.write_failed(metricq::Clock::now() - begin_);
+        }
+    }
+
+    metricq::Duration completed(std::size_t data_size)
+    {
+        auto duration = metricq::Clock::now() - begin_;
+        stats_.write_complete(duration, data_size);
+        success_ = true;
+
+        return duration;
+    }
+
+private:
+    metricq::TimePoint begin_;
+    DbStats& stats_;
+    bool success_ = false;
 };
