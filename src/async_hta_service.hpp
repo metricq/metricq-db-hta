@@ -249,7 +249,10 @@ private:
     void write_(const std::string& id, const metricq::DataChunk& chunk, TimePoint pending_since,
                 Handler handler)
     {
-        auto stats = DbStatsWriteTransaction(stats_, pending_since);
+        auto stats = DbStatsTransaction(
+            [this](auto since) { stats_.write_active(since); },
+            [this](auto at) { stats_.write_failed(at); },
+            [this](auto at, auto size) { stats_.write_complete(at, size); }, pending_since);
 
         assert(directory);
         auto& metric = (*directory)[id];
@@ -333,7 +336,10 @@ private:
     void read_(const std::string& id, const metricq::HistoryRequest& content,
                TimePoint pending_since, Handler& handler)
     {
-        auto stats = DbStatsReadTransaction(stats_, pending_since);
+        auto stats = DbStatsTransaction(
+            [this](auto since) { stats_.read_active(since); },
+            [this](auto at) { stats_.read_failed(at); },
+            [this](auto at, auto size) { stats_.read_complete(at, size); }, pending_since);
 
         metricq::HistoryResponse response;
         response.set_metric(id);

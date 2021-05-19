@@ -62,27 +62,32 @@ private:
     std::unique_ptr<DbStatsImpl> impl;
 };
 
-class DbStatsReadTransaction
+template <typename ActiveCB, typename FailedCB, typename CompleteCB>
+class DbStatsTransaction
 {
 public:
-    DbStatsReadTransaction(DbStats& stats, metricq::TimePoint pending_since)
-    : begin_(metricq::Clock::now()), stats_(stats)
+    DbStatsTransaction(ActiveCB active, FailedCB failed, CompleteCB complete,
+                       metricq::TimePoint pending_since)
+    : begin_(metricq::Clock::now()), active_(active), failed_(failed), complete_(complete)
     {
-        stats_.read_active(begin_ - pending_since);
+        active_(begin_ - pending_since);
     }
 
-    ~DbStatsReadTransaction()
+    DbStatsTransaction(const DbStatsTransaction&) = delete;
+    DbStatsTransaction& operator=(const DbStatsTransaction&) = delete;
+
+    ~DbStatsTransaction()
     {
         if (!success_)
         {
-            stats_.read_failed(metricq::Clock::now() - begin_);
+            failed_(metricq::Clock::now() - begin_);
         }
     }
 
     metricq::Duration completed(std::size_t data_size)
     {
         auto duration = metricq::Clock::now() - begin_;
-        stats_.read_complete(duration, data_size);
+        complete_(duration, data_size);
         success_ = true;
 
         return duration;
@@ -90,38 +95,8 @@ public:
 
 private:
     metricq::TimePoint begin_;
-    DbStats& stats_;
-    bool success_ = false;
-};
-
-class DbStatsWriteTransaction
-{
-public:
-    DbStatsWriteTransaction(DbStats& stats, metricq::TimePoint pending_since)
-    : begin_(metricq::Clock::now()), stats_(stats)
-    {
-        stats_.write_active(begin_ - pending_since);
-    }
-
-    ~DbStatsWriteTransaction()
-    {
-        if (!success_)
-        {
-            stats_.write_failed(metricq::Clock::now() - begin_);
-        }
-    }
-
-    metricq::Duration completed(std::size_t data_size)
-    {
-        auto duration = metricq::Clock::now() - begin_;
-        stats_.write_complete(duration, data_size);
-        success_ = true;
-
-        return duration;
-    }
-
-private:
-    metricq::TimePoint begin_;
-    DbStats& stats_;
+    ActiveCB active_;
+    FailedCB failed_;
+    CompleteCB complete_;
     bool success_ = false;
 };
