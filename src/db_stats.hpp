@@ -62,15 +62,16 @@ private:
     std::unique_ptr<DbStatsImpl> impl;
 };
 
-template <typename ActiveCB, typename FailedCB, typename CompleteCB>
+template <void (DbStats::*active)(metricq::Duration), void (DbStats::*failed)(metricq::Duration),
+          void (DbStats::*complete)(metricq::Duration, std::size_t)>
 class DbStatsTransaction
 {
 public:
-    DbStatsTransaction(ActiveCB active, FailedCB failed, CompleteCB complete,
+    DbStatsTransaction(DbStats& stats,
                        metricq::TimePoint pending_since)
-    : begin_(metricq::Clock::now()), active_(active), failed_(failed), complete_(complete)
+    : begin_(metricq::Clock::now()), stats_(&stats)
     {
-        active_(begin_ - pending_since);
+        (stats_->*active)(begin_ - pending_since);
     }
 
     DbStatsTransaction(const DbStatsTransaction&) = delete;
@@ -80,14 +81,14 @@ public:
     {
         if (!success_)
         {
-            failed_(metricq::Clock::now() - begin_);
+            (stats_->*failed)(metricq::Clock::now() - begin_);
         }
     }
 
     metricq::Duration completed(std::size_t data_size)
     {
         auto duration = metricq::Clock::now() - begin_;
-        complete_(duration, data_size);
+        (stats_->*complete)(duration, data_size);
         success_ = true;
 
         return duration;
@@ -95,8 +96,9 @@ public:
 
 private:
     metricq::TimePoint begin_;
-    ActiveCB active_;
-    FailedCB failed_;
-    CompleteCB complete_;
+    DbStats* stats_;
     bool success_ = false;
 };
+
+using DbStatsReadTransaction = DbStatsTransaction<&DbStats::read_active, &DbStats::read_failed, &DbStats::read_complete>;
+using DbStatsWriteTransaction = DbStatsTransaction<&DbStats::write_active, &DbStats::write_failed, &DbStats::write_complete>;
