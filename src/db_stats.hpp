@@ -67,8 +67,7 @@ template <void (DbStats::*active)(metricq::Duration), void (DbStats::*failed)(me
 class DbStatsTransaction
 {
 public:
-    DbStatsTransaction(DbStats& stats,
-                       metricq::TimePoint pending_since)
+    DbStatsTransaction(DbStats& stats, metricq::TimePoint pending_since)
     : begin_(metricq::Clock::now()), stats_(&stats)
     {
         (stats_->*active)(begin_ - pending_since);
@@ -100,5 +99,7 @@ private:
     bool success_ = false;
 };
 
-using DbStatsReadTransaction = DbStatsTransaction<&DbStats::read_active, &DbStats::read_failed, &DbStats::read_complete>;
-using DbStatsWriteTransaction = DbStatsTransaction<&DbStats::write_active, &DbStats::write_failed, &DbStats::write_complete>;
+using DbStatsReadTransaction =
+    DbStatsTransaction<&DbStats::read_active, &DbStats::read_failed, &DbStats::read_complete>;
+using DbStatsWriteTransaction =
+    DbStatsTransaction<&DbStats::write_active, &DbStats::write_failed, &DbStats::write_complete>;
