@@ -174,7 +174,7 @@ public:
         failed_count_.metadata.quantity("");
         failed_count_.metadata.description(
             fmt::format("number of failed {}-requests", read_or_write));
-        failed_count_.metadata.scope(metricq::Metadata::Scope::point);
+        failed_count_.metadata.scope(metricq::Metadata::Scope::last);
         failed_count_.metadata.rate(rate);
     }
 
