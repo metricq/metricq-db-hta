@@ -66,9 +66,19 @@ public:
         stats_.data_size_ += data_size;
     }
 
+    template <typename T>
+    void failed(T active_duration)
+    {
+        std::lock_guard lock(stats_mutex_);
+        stats_.in_active_state_--;
+        stats_.failed_count_++;
+        stats_.active_duration_ += std::chrono::duration_cast<metricq::Duration>(active_duration);
+    }
+
     struct Stats
     {
         size_t completed_count_ = 0;
+        size_t failed_count_ = 0;
         size_t started_count_ = 0;
         size_t data_size_ = 0;
         metricq::Duration pending_duration_ = metricq::Duration(0);
@@ -83,6 +93,7 @@ public:
         void reset() noexcept
         {
             completed_count_ = 0;
+            failed_count_ = 0;
             started_count_ = 0;
             data_size_ = 0;
             pending_duration_ = metricq::Duration(0);
@@ -115,7 +126,8 @@ public:
       pending_time_(writer.output_metric(prefix + read_or_write + ".pending.time")),
       active_utilization_(writer.output_metric(prefix + read_or_write + ".utilization")),
       pending_count_(writer.output_metric(prefix + read_or_write + ".pending.count")),
-      active_count_(writer.output_metric(prefix + read_or_write + ".active.count"))
+      active_count_(writer.output_metric(prefix + read_or_write + ".active.count")),
+      failed_count_(writer.output_metric(prefix + read_or_write + ".failed.count"))
     {
         request_rate_.metadata.unit("Hz");
         request_rate_.metadata.quantity("rate");
@@ -157,6 +169,13 @@ public:
             fmt::format("number of actively processed {}-requests", read_or_write));
         active_count_.metadata.scope(metricq::Metadata::Scope::point);
         active_count_.metadata.rate(rate);
+
+        failed_count_.metadata.unit("");
+        failed_count_.metadata.quantity("");
+        failed_count_.metadata.description(
+            fmt::format("number of failed {}-requests", read_or_write));
+        failed_count_.metadata.scope(metricq::Metadata::Scope::last);
+        failed_count_.metadata.rate(rate);
     }
 
     void write(StatsCollector::Stats stats, metricq::TimePoint time, double duration)
@@ -183,6 +202,7 @@ public:
                                              duration });
         pending_count_.send({ time, static_cast<double>(stats.in_pending_state_) });
         active_count_.send({ time, static_cast<double>(stats.in_active_state_) });
+        failed_count_.send({ time, static_cast<double>(stats.failed_count_) });
     }
 
 private:
@@ -192,6 +212,7 @@ private:
     Metric& active_utilization_;
     Metric& pending_count_;
     Metric& active_count_;
+    Metric& failed_count_;
 };
 
 class DbStats::DbStatsImpl
@@ -275,6 +296,14 @@ void DbStats::read_complete(metricq::Duration active_duration, std::size_t data_
     }
 }
 
+void DbStats::read_failed(metricq::Duration active_duration)
+{
+    if (impl)
+    {
+        impl->read.failed(active_duration);
+    }
+}
+
 void DbStats::write_pending()
 {
     if (impl)
@@ -296,6 +325,14 @@ void DbStats::write_complete(metricq::Duration active_duration, std::size_t data
     if (impl)
     {
         impl->write.complete(active_duration, data_size);
+    }
+}
+
+void DbStats::write_failed(metricq::Duration active_duration)
+{
+    if (impl)
+    {
+        impl->write.failed(active_duration);
     }
 }
 

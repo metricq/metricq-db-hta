@@ -249,9 +249,7 @@ private:
     void write_(const std::string& id, const metricq::DataChunk& chunk, TimePoint pending_since,
                 Handler handler)
     {
-
-        auto begin = std::chrono::system_clock::now();
-        stats_.write_active(begin - pending_since);
+        auto stats = DbStatsWriteTransaction(stats_, pending_since);
 
         assert(directory);
         auto& metric = (*directory)[id];
@@ -294,7 +292,9 @@ private:
         }
 
         metric.flush();
-        auto duration = std::chrono::system_clock::now() - begin;
+        // We compute raw size of TimeValues and ignore skipped elements for now
+        size_t data_size = chunk.value_size() * sizeof(TimeValue);
+        auto duration = stats.completed(data_size);
         if (duration > std::chrono::seconds(1))
         {
             Log::warn()
@@ -310,10 +310,6 @@ private:
                                 .count()
                          << " ms";
         }
-
-        // We compute raw size of TimeValues and ignore skipped elements for now
-        size_t data_size = chunk.value_size() * sizeof(TimeValue);
-        stats_.write_complete(duration, data_size);
         handler();
     }
 
@@ -337,8 +333,7 @@ private:
     void read_(const std::string& id, const metricq::HistoryRequest& content,
                TimePoint pending_since, Handler& handler)
     {
-        auto begin = Clock::now();
-        stats_.read_active(begin - pending_since);
+        auto stats = DbStatsReadTransaction(stats_, pending_since);
 
         metricq::HistoryResponse response;
         response.set_metric(id);
@@ -481,7 +476,7 @@ private:
             Log::warn() << "got unknown HistoryRequest type";
         }
 
-        auto duration = std::chrono::system_clock::now() - begin;
+        auto duration = stats.completed(data_size);
         if (duration > std::chrono::seconds(1))
         {
             Log::warn()
@@ -499,7 +494,6 @@ private:
                                 .count()
                          << " ms";
         }
-        stats_.read_complete(duration, data_size);
         handler(response);
     }
 
