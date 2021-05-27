@@ -25,7 +25,7 @@ target_link_libraries(metricq-db-hta
         metricq::db
         metricq::logger-nitro
         hta::hta
-        Nitro::core
+        Nitro::options
         fmt::fmt
         )
 
