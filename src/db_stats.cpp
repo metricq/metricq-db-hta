@@ -267,11 +267,6 @@ void DbStats::init(Db& db, const std::string& prefix, double rate)
     impl = std::make_unique<DbStatsImpl>(db, prefix, rate);
 }
 
-void DbStats::reset()
-{
-    impl = nullptr;
-}
-
 void DbStats::read_pending()
 {
     if (impl)

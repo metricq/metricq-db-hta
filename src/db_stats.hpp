@@ -36,8 +36,6 @@ public:
 
     void init(Db& db, const std::string& prefix, double rate);
 
-    void reset();
-
     void read_pending();
 
     void read_active(metricq::Duration pending_duration);
@@ -74,6 +72,7 @@ public:
     }
 
     DbStatsTransaction(const DbStatsTransaction&) = delete;
+
     DbStatsTransaction& operator=(const DbStatsTransaction&) = delete;
 
     ~DbStatsTransaction()
