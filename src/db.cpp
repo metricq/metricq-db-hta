@@ -75,6 +75,11 @@ void Db::on_db_config(const metricq::json& config, metricq::Db::ConfigCompletion
             throw std::runtime_error("rate for stats results in invalid interval");
         }
 
+        Log::info()
+            << "Enabled db stats with prefix '" << prefix << "' and an interval of "
+            << std::chrono::duration_cast<std::chrono::duration<double>>(stats_interval).count()
+            << " s.";
+
         async_hta.stats().init(*this, prefix, rate);
         declare_metrics();
         if (stats_timer_.running())
