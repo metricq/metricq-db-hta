@@ -84,6 +84,8 @@ struct LoggingConfig
         {
             auto logging = config.at("logging");
             nan_values = logging.value("nan_values", nan_values);
+            // using the setting of nan_values as the default for inf_values
+            inf_values = logging.value("inf_values", nan_values);
             non_monotonic_values = logging.value("non_monotonic_values", non_monotonic_values);
         }
         catch (std::exception& e)
@@ -93,6 +95,7 @@ struct LoggingConfig
     }
 
     bool nan_values = true;
+    bool inf_values;
     bool non_monotonic_values = true;
 };
 
@@ -256,6 +259,7 @@ private:
         auto max_ts = metric.range().second;
         uint64_t skip_non_monotonic = 0;
         uint64_t skip_nan = 0;
+        uint64_t skip_inf = 0;
         for (TimeValue tv : chunk)
         {
             if (tv.htv.time <= max_ts)
@@ -266,6 +270,11 @@ private:
             if (std::isnan(tv.htv.value))
             {
                 skip_nan++;
+                continue;
+            }
+            if (std::isinf(tv.htv.value))
+            {
+                skip_inf++;
                 continue;
             }
             max_ts = tv.htv.time;
@@ -288,6 +297,11 @@ private:
         if (logging_.nan_values && skip_nan > 0)
         {
             Log::warn() << "[" << id << "] skipped " << skip_nan << " NaNs of "
+                        << chunk.value_size() << " values";
+        }
+        if (logging_.inf_values && skip_inf > 0)
+        {
+            Log::warn() << "[" << id << "] skipped " << skip_inf << " +/-Infs of "
                         << chunk.value_size() << " values";
         }
 
